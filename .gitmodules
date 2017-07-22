@@ -1,0 +1,3 @@
+[submodule "poseidon"]
+	path = poseidon
+	url = https://github.com/lhmouse/poseidon.git
