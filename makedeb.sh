@@ -1,6 +1,6 @@
 #!/bin/bash
 
-_pkgname="poseidon-medusa2"
+_pkgname="medusa2"
 _maintainer=$(git config --get user.email)
 _pkgversion=$(printf "0.%u.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)")
 

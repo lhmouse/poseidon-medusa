@@ -4,7 +4,7 @@
 namespace Medusa2 {
 namespace Common {
 
-DEFINE_MODULE_CONFIG("poseidon-medusa2-common.conf")
+DEFINE_MODULE_CONFIG("medusa2-common.conf")
 
 }
 }

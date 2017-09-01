@@ -1,7 +1,7 @@
 #!/bin/bash
 
 _runpath="$(find $(pwd) -path '*/lib/.libs' -type d -print0 | sed -r 's/\x00/:/g')"
-_confpath="$(pwd)/etc/poseidon-medusa2"
+_confpath="$(pwd)/etc/medusa2"
 
 if [ "$1" == "-d" ]; then
 	LD_LIBRARY_PATH="${_runpath}" ./libtool --mode=execute gdb --args poseidon "${_confpath}"

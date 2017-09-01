@@ -15,20 +15,17 @@ BUILT_SOURCES = \
 CLEANFILES = \
 	src/precompiled.hpp.gch
 
-EXTRA_DIST = \
-	etc/poseidon-medusa2/main-template.conf	\
-	etc/poseidon-medusa2/poseidon-medusa2-common-template.conf
-
-lib_LTLIBRARIES = \
-	lib/libposeidon-medusa2-common.la
-
-lib_libposeidon_medusa2_common_la_SOURCES = \
-	src/mmain.cpp
-
-lib_libposeidon_medusa2_common_la_LDFLAGS = \
-	-no-undefined -version-info 0:0:0
-
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
 pkgsysconf_DATA = \
-	etc/poseidon-medusa2/main-template.conf	\
-	etc/poseidon-medusa2/poseidon-medusa2-common-template.conf
+	etc/medusa2/main-template.conf	\
+	etc/medusa2/medusa2-common-template.conf
+
+lib_LTLIBRARIES = \
+	lib/libmedusa2-common.la
+
+lib_libmedusa2_common_la_SOURCES = \
+	src/encryption.cpp	\
+	src/mmain.cpp
+
+lib_libmedusa2_common_la_LDFLAGS = \
+	-module -no-undefined -version-info 0:0:0

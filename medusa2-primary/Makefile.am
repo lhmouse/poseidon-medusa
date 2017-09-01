@@ -6,18 +6,15 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wsign-conversion -Wno-error=unused-paramete
 AM_CXXFLAGS =
 AM_LIBS =
 
-EXTRA_DIST = \
-	etc/poseidon-medusa2/poseidon-medusa2-primary-template.conf
-
-lib_LTLIBRARIES = \
-	lib/libposeidon-medusa2-primary.la
-
-lib_libposeidon_medusa2_primary_la_SOURCES = \
-	src/mmain.cpp
-
-lib_libposeidon_medusa2_primary_la_LDFLAGS = \
-	-no-undefined -version-info 0:0:0
-
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
 pkgsysconf_DATA = \
-	etc/poseidon-medusa2/poseidon-medusa2-primary-template.conf
+	etc/medusa2/medusa2-primary-template.conf
+
+lib_LTLIBRARIES = \
+	lib/libmedusa2-primary.la
+
+lib_libmedusa2_primary_la_SOURCES = \
+	src/mmain.cpp
+
+lib_libmedusa2_primary_la_LDFLAGS = \
+	-module -no-undefined -version-info 0:0:0
