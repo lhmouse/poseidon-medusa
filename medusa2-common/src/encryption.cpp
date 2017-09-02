@@ -1,5 +1,6 @@
 #include "precompiled.hpp"
 #include "encryption.hpp"
+#include "mmain.hpp"
 #include "protocol/error_codes.hpp"
 #include <poseidon/sha1.hpp>
 #include <poseidon/cbpp/exception.hpp>
@@ -38,14 +39,13 @@ namespace {
 }
 
 Poseidon::StreamBuffer encrypt_explicit(const std::string &key,
-	Poseidon::StreamBuffer plaintext)
+	Poseidon::StreamBuffer plaintext, boost::uint64_t timestamp)
 {
 	PROFILE_ME;
 
 	Poseidon::StreamBuffer ciphertext;
 	boost::uint64_t timestamp_be;
-	const AUTO(utc_now, Poseidon::get_utc_time());
-	Poseidon::store_be(timestamp_be, utc_now);
+	Poseidon::store_be(timestamp_be, timestamp);
 	// TIMESTAMP: 8 bytes
 	ciphertext.put(&timestamp_be, 8);
 	Poseidon::Sha1_ostream sha1_os;
@@ -117,14 +117,21 @@ Poseidon::StreamBuffer decrypt_explicit(const std::string &key,
 	return plaintext;
 }
 
-MODULE_RAII(){
-       Poseidon::StreamBuffer src, dst;
-       src.put("hello world!");
-       LOG_POSEIDON_FATAL("src = ", src);
-       auto buf = encrypt_explicit("key", src);
-       LOG_POSEIDON_FATAL("buf = ", buf);
-       dst = decrypt_explicit("key", buf, 0, UINT64_MAX);
-       LOG_POSEIDON_FATAL("dst = ", dst);
+Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
+	PROFILE_ME;
+
+	const AUTO(key, get_config<std::string>("encrypted_message_key"));
+	const AUTO(utc_now, Poseidon::get_utc_time());
+	return encrypt_explicit(key, STD_MOVE(plaintext), utc_now);
+}
+Poseidon::StreamBuffer decrypt(Poseidon::StreamBuffer ciphertext){
+	PROFILE_ME;
+
+	const AUTO(key, get_config<std::string>("encrypted_message_key"));
+	const AUTO(utc_now, Poseidon::get_utc_time());
+	const AUTO(expiry_duration, get_config<boost::uint64_t>("encrypted_message_expiry_duration", 60000));
+	return decrypt_explicit(key, STD_MOVE(ciphertext), Poseidon::saturated_sub(utc_now, expiry_duration),
+	                                                   Poseidon::saturated_add(utc_now, expiry_duration));
 }
 
 }
