@@ -12,6 +12,7 @@ class PS_Close;
 
 // Secondary -> Primary
 class SP_Opened;
+class SP_Connected;
 class SP_Received;
 class SP_Closed;
 

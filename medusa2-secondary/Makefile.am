@@ -20,3 +20,6 @@ lib_libmedusa2_secondary_la_SOURCES = \
 
 lib_libmedusa2_secondary_la_LDFLAGS = \
 	-module -no-undefined -version-info 0:0:0
+
+lib_libmedusa2_secondary_la_LIBADD = \
+	../medusa2-common/lib/libmedusa2-common.la

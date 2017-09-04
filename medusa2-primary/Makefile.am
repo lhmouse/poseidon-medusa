@@ -14,7 +14,12 @@ lib_LTLIBRARIES = \
 	lib/libmedusa2-primary.la
 
 lib_libmedusa2_primary_la_SOURCES = \
+	src/secondary_client.cpp	\
+	src/singletons/secondary_connector.cpp	\
 	src/mmain.cpp
 
 lib_libmedusa2_primary_la_LDFLAGS = \
 	-module -no-undefined -version-info 0:0:0
+
+lib_libmedusa2_primary_la_LIBADD = \
+	../medusa2-common/lib/libmedusa2-common.la

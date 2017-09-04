@@ -6,6 +6,7 @@ namespace Protocol {
 
 namespace ErrorCodes {
 	enum {
+		ERR_SUCCESS                           =    0,
 		ERR_INTERNAL_ERROR                    =   -1,
 		ERR_END_OF_STREAM                     =   -2,
 		ERR_NOT_FOUND                         =   -3,
@@ -15,12 +16,12 @@ namespace ErrorCodes {
 		ERR_LENGTH_ERROR                      =   -9,
 		ERR_DATA_CORRUPTED                    =  -11,
 
-		ERR_SECONDARY_SERVER_UNREACHABLE      = 9000,
 		ERR_DNS_FAILURE                       = 9001,
-		ERR_CONNECTION_REFUSED                = 9002,
-		ERR_CONNECTION_TIMED_OUT              = 9003,
-		ERR_CONNECTION_RESET_BY_PEER          = 9004,
-		ERR_CONNECTION_LOST_UNSPECIFIED       = 9005,
+		ERR_PRIVATE_ADDRESS_DISALLOWED        = 9002,
+		ERR_CONNECTION_LOST_UNSPECIFIED       = 9003,
+		ERR_CONNECTION_REFUSED                = 9004,
+		ERR_CONNECTION_TIMED_OUT              = 9005,
+		ERR_CONNECTION_RESET_BY_PEER          = 9006,
 	};
 }
 using namespace ErrorCodes;
