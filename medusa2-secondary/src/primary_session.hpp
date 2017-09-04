@@ -4,7 +4,7 @@
 #include <poseidon/fwd.hpp>
 #include <poseidon/cbpp/session.hpp>
 #include <poseidon/uuid.hpp>
-#include <boost/container/flat_map.hpp>
+#include <boost/container/map.hpp>
 
 namespace Medusa2 {
 namespace Secondary {
@@ -19,7 +19,7 @@ private:
 
 private:
 	boost::shared_ptr<Poseidon::TimerItem> m_timer;
-	boost::container::flat_map<Poseidon::Uuid, boost::shared_ptr<Channel> > m_channels;
+	boost::container::multimap<Poseidon::Uuid, Channel> m_channels;
 
 public:
 	explicit PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket);

@@ -112,6 +112,15 @@ public:
 };
 
 class PrimarySession::Channel : NONCOPYABLE {
+public:
+	struct EmplaceHelper {
+		boost::weak_ptr<PrimarySession> weak_parent;
+		Poseidon::Uuid channel_uuid;
+		std::string host;
+		unsigned port;
+		bool use_ssl;
+	};
+
 private:
 	const boost::weak_ptr<PrimarySession> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
@@ -129,17 +138,20 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, Poseidon::Uuid channel_uuid, std::string host, unsigned port, bool use_ssl)
-		: m_weak_parent(parent), m_channel_uuid(channel_uuid)
-		, m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl)
+	explicit Channel(Poseidon::Move<EmplaceHelper> helper)
+		: m_weak_parent(STD_MOVE(helper.weak_parent)), m_channel_uuid(helper.channel_uuid)
+		, m_host(STD_MOVE(helper.host)), m_port(helper.port), m_use_ssl(helper.use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 
-		Protocol::SP_Opened msg;
-		msg.channel_uuid = get_channel_uuid();
-		parent->send(msg.get_id(), msg);
+		const AUTO(parent, get_parent());
+		if(parent){
+			Protocol::SP_Opened msg;
+			msg.channel_uuid = get_channel_uuid();
+			parent->send(msg.get_id(), msg);
+		}
 	}
 	~Channel(){
 		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
@@ -317,9 +329,8 @@ void PrimarySession::on_timer(){
 	AUTO(it, m_channels.begin());
 	while(it != m_channels.end()){
 		const AUTO(channel_uuid, it->first);
-		const AUTO(channel, it->second);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
-		const bool finished = channel->update();
+		const bool finished = it->second.update();
 		if(finished){
 			LOG_MEDUSA2_DEBUG("Destroying channel: channel_uuid = ", channel_uuid);
 			it = m_channels.erase(it);
@@ -355,8 +366,8 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 100, boost::bind(&timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), msg.port, msg.use_ssl));
-		m_channels.emplace(channel_uuid, channel);
+		Channel::EmplaceHelper helper = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
+		m_channels.emplace(channel_uuid, STD_MOVE(helper));
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -365,8 +376,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		const AUTO(channel, it->second);
-		channel->send(msg.segment.data(), msg.segment.size());
+		it->second.send(msg.segment.data(), msg.segment.size());
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -375,8 +385,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		const AUTO(channel, it->second);
-		channel->acknowledge(msg.bytes_to_acknowledge);
+		it->second.acknowledge(msg.bytes_to_acknowledge);
 	}
 	ON_MESSAGE(Protocol::PS_Close, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -385,8 +394,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		const AUTO(channel, it->second);
-		channel->close(msg.no_linger);
+		it->second.close(msg.no_linger);
 	}
 //=============================================================================
 #undef ON_MESSAGE
