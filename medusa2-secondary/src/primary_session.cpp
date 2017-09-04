@@ -112,7 +112,7 @@ public:
 
 class PrimarySession::Channel : NONCOPYABLE {
 public:
-	struct EmplaceHelper {
+	struct EmplaceParams {
 		boost::weak_ptr<PrimarySession> weak_parent;
 		Poseidon::Uuid channel_uuid;
 		std::string host;
@@ -153,9 +153,9 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	explicit Channel(Poseidon::Move<EmplaceHelper> helper)
-		: m_weak_parent(STD_MOVE(helper.weak_parent)), m_channel_uuid(helper.channel_uuid)
-		, m_host(STD_MOVE(helper.host)), m_port(helper.port), m_use_ssl(helper.use_ssl)
+	explicit Channel(EmplaceParams params)
+		: m_weak_parent(STD_MOVE(params.weak_parent)), m_channel_uuid(params.channel_uuid)
+		, m_host(STD_MOVE(params.host)), m_port(params.port), m_use_ssl(params.use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
 	{
@@ -181,7 +181,7 @@ public:
 				Protocol::SP_Closed msg;
 				msg.channel_uuid = get_channel_uuid();
 				msg.err_code     = m_err_code;
-				msg.err_msg      = std::move(m_err_msg);
+				msg.err_msg      = STD_MOVE(m_err_msg);
 				parent->send(msg);
 			} catch(std::exception &e){
 				LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
@@ -285,7 +285,7 @@ public:
 			}
 			Protocol::SP_Received msg;
 			msg.channel_uuid = get_channel_uuid();
-			msg.segment      = std::move(segment);
+			msg.segment      = STD_MOVE(segment);
 			parent->send(msg);
 		}
 		if(!has_been_shutdown){
@@ -371,8 +371,8 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 100, boost::bind(&timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		Channel::EmplaceHelper helper = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
-		m_channels.emplace(channel_uuid, STD_MOVE(helper));
+		Channel::EmplaceParams params = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
+		m_channels.emplace(channel_uuid, STD_MOVE(params));
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
