@@ -51,14 +51,12 @@ protected:
 	void on_read_hup() OVERRIDE {
 		LOG_MEDUSA2_TRACE("Connection read hang up: remote = ", get_remote_info());
 
-		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		m_connected_or_closed = true;
-		m_syserrno = 0;
+		shutdown_write();
 	}
 	void on_close(int err_code) OVERRIDE {
 		LOG_MEDUSA2_TRACE("Connection closed: remote = ", get_remote_info(), ", err_code = ", err_code);
-
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
+
 		m_connected_or_closed = true;
 		m_syserrno = err_code;
 	}

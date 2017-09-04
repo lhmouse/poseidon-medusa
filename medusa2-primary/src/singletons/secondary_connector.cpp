@@ -30,11 +30,6 @@ namespace {
 		client = boost::make_shared<SecondaryClient>(promised_sock_addr->get(), use_ssl);
 		client->go_resident();
 		client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
-
-AUTO(uuid, Poseidon::Uuid::random());
-client->send(Protocol::PS_Open(uuid, "www.baidu.com", 443, true));
-client->send(Protocol::PS_Send(uuid, (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n"));
-
 		g_client = client;
 	}
 
