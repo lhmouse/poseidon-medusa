@@ -26,7 +26,7 @@
 #  include <type_traits>
 #endif
 
-#define LOG_MEDUSA2(level_, ...)      LOG_MASK(0x0040 | (level_), __VA_ARGS__)
+#define LOG_MEDUSA2(level_, ...)      LOG_MASK(0x4000 | (level_), __VA_ARGS__)
 #define LOG_MEDUSA2_FATAL(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_FATAL,   __VA_ARGS__)
 #define LOG_MEDUSA2_ERROR(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_ERROR,   __VA_ARGS__)
 #define LOG_MEDUSA2_WARNING(...)      LOG_MEDUSA2(::Poseidon::Logger::LV_WARNING, __VA_ARGS__)
