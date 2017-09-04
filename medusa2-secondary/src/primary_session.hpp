@@ -2,6 +2,7 @@
 #define MEDUSA2_SECONDARY_PRIMARY_SESSION_HPP_
 
 #include <poseidon/fwd.hpp>
+#include <poseidon/cbpp/fwd.hpp>
 #include <poseidon/cbpp/session.hpp>
 #include <poseidon/uuid.hpp>
 #include <boost/container/map.hpp>
@@ -25,11 +26,12 @@ public:
 	explicit PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket);
 	~PrimarySession();
 
-private:
+protected:
 	void on_timer();
 	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
 
-	bool send(boost::uint16_t message_id, Poseidon::StreamBuffer payload);
+public:
+	bool send(const Poseidon::Cbpp::MessageBase &msg);
 };
 
 }

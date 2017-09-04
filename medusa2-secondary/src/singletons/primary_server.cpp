@@ -23,7 +23,7 @@ namespace {
 
 	MODULE_RAII(handles){
 		const auto bind = get_config<std::string>("primary_server_bind", "127.0.0.1");
-		const auto port = get_config<std::uint16_t>("primary_server_port", 3805);
+		const auto port = get_config<boost::uint16_t>("primary_server_port", 3805);
 		const auto cert = get_config<std::string>("primary_server_certificate");
 		const auto pkey = get_config<std::string>("primary_server_private_key");
 		LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryServerTcp: bind:port = ", bind, ":", port);

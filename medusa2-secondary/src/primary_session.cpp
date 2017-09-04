@@ -6,7 +6,6 @@
 #include "protocol/error_codes.hpp"
 #include <poseidon/cbpp/exception.hpp>
 #include <poseidon/tcp_client_base.hpp>
-#include <poseidon/uuid.hpp>
 #include <poseidon/singletons/timer_daemon.hpp>
 #include <poseidon/sock_addr.hpp>
 #include <poseidon/singletons/dns_daemon.hpp>
@@ -100,7 +99,7 @@ public:
 		Poseidon::TcpClientBase::set_throttled(m_queue_size >= max_queue_size);
 	}
 	bool has_been_shutdown() const {
-		return Poseidon::TcpClientBase::has_been_shutdown_read() && Poseidon::TcpClientBase::has_been_shutdown_write();
+		return Poseidon::TcpClientBase::has_been_shutdown_read();
 	}
 	void shutdown() NOEXCEPT {
 		Poseidon::TcpClientBase::shutdown_read();
@@ -120,6 +119,22 @@ public:
 		unsigned port;
 		bool use_ssl;
 	};
+
+private:
+	static long translate_errno(int syserrno) NOEXCEPT {
+		switch(syserrno){
+		case 0:
+			return Protocol::ERR_SUCCESS;
+		default:
+			return Protocol::ERR_CONNECTION_LOST_UNSPECIFIED;
+		case ECONNREFUSED:
+			return Protocol::ERR_CONNECTION_REFUSED;
+		case ETIMEDOUT:
+			return Protocol::ERR_CONNECTION_TIMED_OUT;
+		case ECONNRESET:
+			return Protocol::ERR_CONNECTION_RESET_BY_PEER;
+		}
+	}
 
 private:
 	const boost::weak_ptr<PrimarySession> m_weak_parent;
@@ -150,7 +165,7 @@ public:
 		if(parent){
 			Protocol::SP_Opened msg;
 			msg.channel_uuid = get_channel_uuid();
-			parent->send(msg.get_id(), msg);
+			parent->send(msg);
 		}
 	}
 	~Channel(){
@@ -167,7 +182,7 @@ public:
 				msg.channel_uuid = get_channel_uuid();
 				msg.err_code     = m_err_code;
 				msg.err_msg      = std::move(m_err_msg);
-				parent->send(msg.get_id(), msg);
+				parent->send(msg);
 			} catch(std::exception &e){
 				LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
 				parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
@@ -244,8 +259,9 @@ public:
 			m_fetch_client->go_resident();
 		}
 		if(!m_send_queue.empty()){
-			m_fetch_client->send(STD_MOVE(m_send_queue));
-			m_send_queue.clear();
+			Poseidon::StreamBuffer send_queue;
+			send_queue.swap(m_send_queue);
+			m_fetch_client->send(STD_MOVE(send_queue));
 		}
 		if(!m_fetch_client->is_connected_or_closed()){
 			LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
@@ -253,11 +269,11 @@ public:
 		}
 
 		if(!m_establishment_notified && m_fetch_client->was_established_at_all()){
+			m_establishment_notified = true;
+
 			Protocol::SP_Established msg;
 			msg.channel_uuid = get_channel_uuid();
-			parent->send(msg.get_id(), msg);
-
-			m_establishment_notified = true;
+			parent->send(msg);
 		}
 
 		bool has_been_shutdown;
@@ -270,7 +286,7 @@ public:
 			Protocol::SP_Received msg;
 			msg.channel_uuid = get_channel_uuid();
 			msg.segment      = std::move(segment);
-			parent->send(msg.get_id(), msg);
+			parent->send(msg);
 		}
 		if(!has_been_shutdown){
 			LOG_MEDUSA2_TRACE("Waiting for more data: host:port = ", m_host, ":", m_port);
@@ -278,18 +294,7 @@ public:
 		}
 
 		const int syserrno = m_fetch_client->get_syserrno();
-		switch(syserrno){
-		case 0:
-			m_err_code = Protocol::ERR_SUCCESS;
-		default:
-			m_err_code = Protocol::ERR_CONNECTION_LOST_UNSPECIFIED;
-		case ECONNREFUSED:
-			m_err_code = Protocol::ERR_CONNECTION_REFUSED;
-		case ETIMEDOUT:
-			m_err_code = Protocol::ERR_CONNECTION_TIMED_OUT;
-		case ECONNRESET:
-			m_err_code = Protocol::ERR_CONNECTION_RESET_BY_PEER;
-		}
+		m_err_code = translate_errno(syserrno);
 		m_err_msg = Poseidon::get_error_desc_as_string(syserrno);
 		return true;
 	}
@@ -345,7 +350,7 @@ void PrimarySession::on_timer(){
 }
 void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
 	PROFILE_ME;
-	LOG_MEDUSA2_TRACE("Received data: remote = ", get_remote_info(), ", message_id = ", message_id);
+	LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
 	AUTO(plaintext, Common::decrypt(STD_MOVE(payload)));
 	LOG_MEDUSA2_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
@@ -406,11 +411,11 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 	}
 }
 
-bool PrimarySession::send(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
+bool PrimarySession::send(const Poseidon::Cbpp::MessageBase &msg){
 	PROFILE_ME;
 
-	AUTO(ciphertext, Common::encrypt(STD_MOVE(payload)));
-	return Poseidon::Cbpp::Session::send(message_id, STD_MOVE(ciphertext));
+	AUTO(ciphertext, Common::encrypt(msg));
+	return Poseidon::Cbpp::Session::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
 }
