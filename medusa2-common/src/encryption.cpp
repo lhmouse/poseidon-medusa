@@ -2,7 +2,7 @@
 #include "encryption.hpp"
 #include "mmain.hpp"
 #include "protocol/error_codes.hpp"
-#include <poseidon/sha1.hpp>
+#include <poseidon/sha256.hpp>
 #include <poseidon/cbpp/exception.hpp>
 #include <openssl/aes.h>
 
@@ -10,9 +10,9 @@ namespace Medusa2 {
 namespace Common {
 
 namespace {
-	::AES_KEY aes_key_init_128(const unsigned char *key_bytes){
+	::AES_KEY aes_key_init_192(const unsigned char *key_bytes){
 		::AES_KEY aes_key;
-		const int err_code = ::AES_set_encrypt_key(key_bytes, 128, &aes_key);
+		const int err_code = ::AES_set_encrypt_key(key_bytes, 192, &aes_key);
 		DEBUG_THROW_ASSERT(err_code == 0);
 		return aes_key;
 	}
@@ -46,18 +46,16 @@ Poseidon::StreamBuffer encrypt_explicit(const std::string &key, Poseidon::Stream
 	Poseidon::store_be(timestamp_be, timestamp);
 	// TIMESTAMP: 8 bytes
 	ciphertext.put(&timestamp_be, 8);
-	Poseidon::Sha1_ostream sha1_os;
-	sha1_os.write(reinterpret_cast<const char *>(&timestamp_be), 8)
-	       .write(key.data(), static_cast<std::streamsize>(key.size()));
-	AUTO(sha1, sha1_os.finalize());
-	// KEY_CHECKSUM: 4 bytes
-	ciphertext.put(sha1.data(), 4);
-	const AUTO(aes_key, aes_key_init_128(sha1.data() + 4));
+	Poseidon::Sha256_ostream sha256_os;
+	sha256_os <<timestamp <<'#' <<key <<'#';
+	AUTO(sha256, sha256_os.finalize());
+	// KEY_CHECKSUM: 8 bytes
+	ciphertext.put(sha256.data(), 8);
+	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
 	// DATA_CHECKSUM: 8 bytes
-	sha1_os.write(reinterpret_cast<const char *>(&timestamp_be), 8);
-	plaintext.dump(sha1_os);
-	sha1 = sha1_os.finalize();
-	ciphertext.put(sha1.data() + 6, 8);
+	sha256_os <<timestamp <<'#' <<plaintext <<'#';
+	sha256 = sha256_os.finalize();
+	ciphertext.put(sha256.data(), 8);
 	// DATA: ? bytes
 	aes_ctr_transform(ciphertext, plaintext, aes_key);
 	return ciphertext;
@@ -78,29 +76,27 @@ Poseidon::StreamBuffer decrypt_explicit(const std::string &key, Poseidon::Stream
 	if(timestamp > timestamp_upper){
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Timestamp too far in the future"));
 	}
-	// KEY_CHECKSUM: 4 bytes
-	boost::array<unsigned char, 32> checksum;
-	if(ciphertext.get(checksum.data(), 4) < 4){
+	// KEY_CHECKSUM: 8 bytes
+	boost::array<unsigned char, 8> checksum;
+	if(ciphertext.get(checksum.data(), 8) < 8){
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting KEY_CHECKSUM"));
 	}
-	Poseidon::Sha1_ostream sha1_os;
-	sha1_os.write(reinterpret_cast<const char *>(&timestamp_be), 8)
-	       .write(key.data(), static_cast<std::streamsize>(key.size()));
-	AUTO(sha1, sha1_os.finalize());
-	if(std::memcmp(checksum.data(), sha1.data(), 4) != 0){
+	Poseidon::Sha256_ostream sha256_os;
+	sha256_os <<timestamp <<'#' <<key <<'#';
+	AUTO(sha256, sha256_os.finalize());
+	if(std::memcmp(checksum.data(), sha256.data(), 8) != 0){
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Incorrect key (checksum mismatch)"));
 	}
-	const AUTO(aes_key, aes_key_init_128(sha1.data() + 4));
+	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
 	// DATA_CHECKSUM: 8 bytes
 	if(ciphertext.get(checksum.data(), 8) < 8){
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting DATA_CHECKSUM"));
 	}
 	// DATA: ? bytes
 	aes_ctr_transform(plaintext, ciphertext, aes_key);
-	sha1_os.write(reinterpret_cast<const char *>(&timestamp_be), 8);
-	plaintext.dump(sha1_os);
-	sha1 = sha1_os.finalize();
-	if(std::memcmp(checksum.data(), sha1.data() + 6, 8) != 0){
+	sha256_os <<timestamp <<'#' <<plaintext <<'#';
+	sha256 = sha256_os.finalize();
+	if(std::memcmp(checksum.data(), sha256.data(), 8) != 0){
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_DATA_CORRUPTED, Poseidon::sslit("Data corrupted (checksum mismatch)"));
 	}
 	return plaintext;
