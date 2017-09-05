@@ -20,6 +20,12 @@ pkgsysconf_DATA = \
 	etc/medusa2/main-template.conf	\
 	etc/medusa2/medusa2-common-template.conf
 
+pkginclude_protocoldir = $(pkgincludedir)/protocol
+pkginclude_protocol_HEADERS = \
+	protocol/messages_fwd.hpp	\
+	protocol/messages.hpp	\
+	protocol/error_codes.hpp
+
 lib_LTLIBRARIES = \
 	lib/libmedusa2-common.la
 

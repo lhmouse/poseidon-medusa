@@ -113,6 +113,8 @@ public:
 	struct EmplaceParams {
 		boost::weak_ptr<PrimarySession> weak_parent;
 		Poseidon::Uuid channel_uuid;
+		std::string opaque;
+
 		std::string host;
 		unsigned port;
 		bool use_ssl;
@@ -137,6 +139,7 @@ private:
 private:
 	const boost::weak_ptr<PrimarySession> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
+	const std::string m_opaque;
 
 	const std::string m_host;
 	const unsigned m_port;
@@ -152,32 +155,33 @@ private:
 
 public:
 	explicit Channel(EmplaceParams params)
-		: m_weak_parent(STD_MOVE(params.weak_parent)), m_channel_uuid(params.channel_uuid)
+		: m_weak_parent(STD_MOVE(params.weak_parent)), m_channel_uuid(params.channel_uuid), m_opaque(STD_MOVE(params.opaque))
 		, m_host(STD_MOVE(params.host)), m_port(params.port), m_use_ssl(params.use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
 	{
-		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
+		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
 
-		const AUTO(parent, get_parent());
+		const AUTO(parent, m_weak_parent.lock());
 		if(parent){
 			Protocol::SP_Opened msg;
-			msg.channel_uuid = get_channel_uuid();
+			msg.channel_uuid = m_channel_uuid;
+			msg.opaque       = m_opaque;
 			parent->send(msg);
 		}
 	}
 	~Channel(){
-		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
+		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
 
 		if(m_fetch_client){
 			m_fetch_client->force_shutdown();
 		}
 
-		const AUTO(parent, get_parent());
+		const AUTO(parent, m_weak_parent.lock());
 		if(parent){
 			try {
 				Protocol::SP_Closed msg;
-				msg.channel_uuid = get_channel_uuid();
+				msg.channel_uuid = m_channel_uuid;
 				msg.err_code     = m_err_code;
 				msg.err_msg      = STD_MOVE(m_err_msg);
 				parent->send(msg);
@@ -189,13 +193,6 @@ public:
 	}
 
 public:
-	boost::shared_ptr<PrimarySession> get_parent() const {
-		return m_weak_parent.lock();
-	}
-	const Poseidon::Uuid &get_channel_uuid() const {
-		return m_channel_uuid;
-	}
-
 	void send(const void *data, std::size_t size){
 		PROFILE_ME;
 
@@ -222,7 +219,7 @@ public:
 	bool update(){
 		PROFILE_ME;
 
-		const AUTO(parent, get_parent());
+		const AUTO(parent, m_weak_parent.lock());
 		if(!parent){
 			return true;
 		}
@@ -270,7 +267,7 @@ public:
 			m_establishment_notified = true;
 
 			Protocol::SP_Established msg;
-			msg.channel_uuid = get_channel_uuid();
+			msg.channel_uuid = m_channel_uuid;
 			parent->send(msg);
 		}
 
@@ -282,7 +279,7 @@ public:
 				break;
 			}
 			Protocol::SP_Received msg;
-			msg.channel_uuid = get_channel_uuid();
+			msg.channel_uuid = m_channel_uuid;
 			msg.segment      = STD_MOVE(segment);
 			parent->send(msg);
 		}
@@ -370,7 +367,7 @@ try {
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 100, boost::bind(&timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		Channel::EmplaceParams params = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
+		Channel::EmplaceParams params = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
 		m_channels.emplace(channel_uuid, STD_MOVE(params));
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
