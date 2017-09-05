@@ -18,7 +18,8 @@ SecondaryClient::~SecondaryClient(){
 	LOG_MEDUSA2_INFO("SecondaryClient destructor: remote = ", get_remote_info());
 }
 
-void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
+void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload)
+try {
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
@@ -55,6 +56,12 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
 	}
+} catch(Poseidon::Cbpp::Exception &e){
+	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", code = ", e.get_code(), ", what = ", e.what());
+	throw;
+} catch(std::exception &e){
+	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
+	throw;
 }
 
 bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
