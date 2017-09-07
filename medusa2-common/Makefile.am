@@ -15,10 +15,14 @@ BUILT_SOURCES = \
 CLEANFILES = \
 	src/precompiled.hpp.gch
 
+sysconf_DATA =
+
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
 pkgsysconf_DATA = \
 	etc/medusa2/main-template.conf	\
 	etc/medusa2/medusa2-common-template.conf
+
+pkginclude_HEADERS =
 
 pkginclude_protocoldir = $(pkgincludedir)/protocol
 pkginclude_protocol_HEADERS = \
