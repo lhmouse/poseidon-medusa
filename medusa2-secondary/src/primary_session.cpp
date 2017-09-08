@@ -85,9 +85,6 @@ public:
 		return m_syserrno;
 	}
 
-	bool send(Poseidon::StreamBuffer data){
-		return Poseidon::TcpClientBase::send(STD_MOVE(data));
-	}
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
 		const AUTO(max_queue_size, get_config<boost::uint64_t>("fetch_max_queue_size", 65536));
 		LOG_MEDUSA2_TRACE("Acknowledge: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_to_acknowledge = ", bytes_to_acknowledge);
@@ -95,16 +92,6 @@ public:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		m_queue_size = Poseidon::checked_sub(m_queue_size, bytes_to_acknowledge);
 		Poseidon::TcpClientBase::set_throttled(m_queue_size >= max_queue_size);
-	}
-	bool has_been_shutdown() const {
-		return Poseidon::TcpClientBase::has_been_shutdown_read();
-	}
-	void shutdown() NOEXCEPT {
-		Poseidon::TcpClientBase::shutdown_read();
-		Poseidon::TcpClientBase::shutdown_write();
-	}
-	void force_shutdown() NOEXCEPT {
-		Poseidon::TcpClientBase::force_shutdown();
 	}
 };
 
@@ -211,7 +198,7 @@ public:
 			if(no_linger){
 				m_fetch_client->force_shutdown();
 			} else {
-				m_fetch_client->shutdown();
+				m_fetch_client->shutdown_write();
 			}
 		}
 	}
@@ -271,9 +258,9 @@ public:
 			parent->send(msg);
 		}
 
-		bool has_been_shutdown;
+		bool no_more_data;
 		for(;;){
-			has_been_shutdown = m_fetch_client->has_been_shutdown();
+			no_more_data = m_fetch_client->has_been_shutdown_read();
 			AUTO(segment, m_fetch_client->cut_recv_queue());
 			if(segment.empty()){
 				break;
@@ -283,7 +270,7 @@ public:
 			msg.segment      = STD_MOVE(segment);
 			parent->send(msg);
 		}
-		if(!has_been_shutdown){
+		if(!no_more_data){
 			LOG_MEDUSA2_TRACE("Waiting for more data: host:port = ", m_host, ":", m_port);
 			return false;
 		}
