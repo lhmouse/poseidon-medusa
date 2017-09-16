@@ -30,7 +30,6 @@ protected:
 	void on_timer();
 	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
 
-public:
 	bool send(const Poseidon::Cbpp::MessageBase &msg);
 };
 

@@ -38,16 +38,6 @@ protected:
 		m_established_at_all = true;
 		m_syserrno = EPIPE;
 	}
-	void on_receive(Poseidon::StreamBuffer data) OVERRIDE {
-		const AUTO(max_queue_size, get_config<boost::uint64_t>("fetch_max_queue_size", 65536));
-		const AUTO(bytes_received, static_cast<boost::uint64_t>(data.size()));
-		LOG_MEDUSA2_TRACE("Receive: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_received = ", bytes_received);
-
-		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		m_recv_queue.splice(data);
-		m_queue_size = Poseidon::checked_add(m_queue_size, bytes_received);
-		Poseidon::TcpClientBase::set_throttled(m_queue_size >= max_queue_size);
-	}
 	void on_read_hup() OVERRIDE {
 		LOG_MEDUSA2_TRACE("Connection read hang up: remote = ", get_remote_info());
 
@@ -59,6 +49,16 @@ protected:
 
 		m_connected_or_closed = true;
 		m_syserrno = err_code;
+	}
+	void on_receive(Poseidon::StreamBuffer data) OVERRIDE {
+		const AUTO(max_queue_size, get_config<boost::uint64_t>("fetch_max_queue_size", 65536));
+		const AUTO(bytes_received, static_cast<boost::uint64_t>(data.size()));
+		LOG_MEDUSA2_TRACE("Receive: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_received = ", bytes_received);
+
+		const Poseidon::Mutex::UniqueLock lock(m_mutex);
+		m_recv_queue.splice(data);
+		m_queue_size = Poseidon::checked_add(m_queue_size, bytes_received);
+		Poseidon::TcpClientBase::set_throttled(m_queue_size >= max_queue_size);
 	}
 
 public:
