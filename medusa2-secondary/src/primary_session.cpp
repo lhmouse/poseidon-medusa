@@ -302,7 +302,8 @@ void PrimarySession::on_timer(){
 	while(it != m_channels.end()){
 		const AUTO(channel_uuid, it->first);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
-		const bool finished = it->second->update();
+		const AUTO(channel, it->second);
+		const bool finished = channel->update();
 		if(finished){
 			LOG_MEDUSA2_DEBUG("Destroying channel: channel_uuid = ", channel_uuid);
 			it = m_channels.erase(it);
@@ -315,8 +316,7 @@ void PrimarySession::on_timer(){
 		m_timer.reset();
 	}
 }
-void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload)
-try {
+void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
@@ -334,39 +334,56 @@ try {
 //=============================================================================
 	ON_MESSAGE(Protocol::PS_Open, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
+		LOG_MEDUSA2_DEBUG("Open channel: channel_uuid = ", channel_uuid);
+
 		if(!m_timer){
 			LOG_MEDUSA2_DEBUG("Creating timer: remote = ", get_remote_info());
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 100, boost::bind(&timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		m_channels.emplace(channel_uuid, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl));
+		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), msg.port, msg.use_ssl));
+		const AUTO(it, m_channels.emplace(channel_uuid, channel));
+
+		(void)it;
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
+		LOG_MEDUSA2_DEBUG("Send to channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
+
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second->send(msg.segment.data(), msg.segment.size());
+		const AUTO(channel, it->second);
+
+		channel->send(msg.segment.data(), msg.segment.size());
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
+		LOG_MEDUSA2_DEBUG("Acknowledge from channel: channel_uuid = ", channel_uuid, ", bytes_to_acknowledge = ", msg.bytes_to_acknowledge);
+
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second->acknowledge(msg.bytes_to_acknowledge);
+		const AUTO(channel, it->second);
+
+		channel->acknowledge(msg.bytes_to_acknowledge);
 	}
 	ON_MESSAGE(Protocol::PS_Close, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
+		LOG_MEDUSA2_DEBUG("Close channel: channel_uuid = ", channel_uuid, ", no_linger = ", msg.no_linger);
+
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second->close(msg.no_linger);
+		const AUTO(channel, it->second);
+
+		channel->close(msg.no_linger);
 	}
 //=============================================================================
 #undef ON_MESSAGE
@@ -376,12 +393,6 @@ try {
 		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
 	}
-} catch(Poseidon::Cbpp::Exception &e){
-	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", code = ", e.get_code(), ", what = ", e.what());
-	throw;
-} catch(std::exception &e){
-	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
-	throw;
 }
 
 bool PrimarySession::send(const Poseidon::Cbpp::MessageBase &msg){

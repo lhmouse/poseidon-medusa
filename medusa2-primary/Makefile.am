@@ -16,6 +16,8 @@ lib_LTLIBRARIES = \
 lib_libmedusa2_primary_la_SOURCES = \
 	src/secondary_client.cpp	\
 	src/singletons/secondary_connector.cpp	\
+	src/proxy_session.cpp	\
+	src/singletons/proxy_server.cpp	\
 	src/mmain.cpp
 
 lib_libmedusa2_primary_la_LDFLAGS = \
