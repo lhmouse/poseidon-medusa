@@ -8,12 +8,12 @@ namespace Medusa2 {
 namespace Secondary {
 
 namespace {
-	class PrimaryServerTcp : public Poseidon::TcpServerBase {
+	class PrimaryTcpServer : public Poseidon::TcpServerBase {
 	public:
-		PrimaryServerTcp(const std::string &bind, unsigned port, const std::string &cert, const std::string &pkey)
+		PrimaryTcpServer(const std::string &bind, unsigned port, const std::string &cert, const std::string &pkey)
 			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), cert.c_str(), pkey.c_str())
 		{ }
-		~PrimaryServerTcp(){ }
+		~PrimaryTcpServer(){ }
 
 	protected:
 		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) const OVERRIDE {
@@ -21,15 +21,18 @@ namespace {
 		}
 	};
 
+	boost::weak_ptr<PrimaryTcpServer> g_weak_tcp_server;
+
 	MODULE_RAII(handles){
 		const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
 		const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
 		const AUTO(cert, get_config<std::string>("primary_server_certificate"));
 		const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
-		LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryServerTcp: bind:port = ", bind, ":", port);
-		const AUTO(server, boost::make_shared<PrimaryServerTcp>(bind, port, cert, pkey));
-		Poseidon::EpollDaemon::add_socket(server);
-		handles.push(server);
+		LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryTcpServer: bind:port = ", bind, ":", port);
+		const AUTO(tcp_server, boost::make_shared<PrimaryTcpServer>(bind, port, cert, pkey));
+		Poseidon::EpollDaemon::add_socket(tcp_server);
+		handles.push(tcp_server);
+		g_weak_tcp_server = tcp_server;
 	}
 }
 
