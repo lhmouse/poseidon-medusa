@@ -96,17 +96,6 @@ public:
 };
 
 class PrimarySession::Channel : NONCOPYABLE {
-public:
-	struct EmplaceParams {
-		boost::weak_ptr<PrimarySession> weak_parent;
-		Poseidon::Uuid channel_uuid;
-		std::string opaque;
-
-		std::string host;
-		unsigned port;
-		bool use_ssl;
-	};
-
 private:
 	static long translate_errno(int syserrno) NOEXCEPT {
 		switch(syserrno){
@@ -141,21 +130,17 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	explicit Channel(EmplaceParams params)
-		: m_weak_parent(STD_MOVE(params.weak_parent)), m_channel_uuid(params.channel_uuid), m_opaque(STD_MOVE(params.opaque))
-		, m_host(STD_MOVE(params.host)), m_port(params.port), m_use_ssl(params.use_ssl)
+	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string opaque, std::string host, unsigned port, bool use_ssl)
+		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
 
-		const AUTO(parent, m_weak_parent.lock());
-		if(parent){
-			Protocol::SP_Opened msg;
-			msg.channel_uuid = m_channel_uuid;
-			msg.opaque       = m_opaque;
-			parent->send(msg);
-		}
+		Protocol::SP_Opened msg;
+		msg.channel_uuid = m_channel_uuid;
+		msg.opaque       = m_opaque;
+		parent->send(msg);
 	}
 	~Channel(){
 		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
@@ -317,7 +302,7 @@ void PrimarySession::on_timer(){
 	while(it != m_channels.end()){
 		const AUTO(channel_uuid, it->first);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
-		const bool finished = it->second.update();
+		const bool finished = it->second->update();
 		if(finished){
 			LOG_MEDUSA2_DEBUG("Destroying channel: channel_uuid = ", channel_uuid);
 			it = m_channels.erase(it);
@@ -354,8 +339,7 @@ try {
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 100, boost::bind(&timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		Channel::EmplaceParams params = { virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl != 0 };
-		m_channels.emplace(channel_uuid, STD_MOVE(params));
+		m_channels.emplace(channel_uuid, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), static_cast<boost::uint16_t>(msg.port), msg.use_ssl));
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -364,7 +348,7 @@ try {
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second.send(msg.segment.data(), msg.segment.size());
+		it->second->send(msg.segment.data(), msg.segment.size());
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -373,7 +357,7 @@ try {
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second.acknowledge(msg.bytes_to_acknowledge);
+		it->second->acknowledge(msg.bytes_to_acknowledge);
 	}
 	ON_MESSAGE(Protocol::PS_Close, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -382,7 +366,7 @@ try {
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
-		it->second.close(msg.no_linger);
+		it->second->close(msg.no_linger);
 	}
 //=============================================================================
 #undef ON_MESSAGE
