@@ -115,7 +115,7 @@ private:
 private:
 	const boost::weak_ptr<PrimarySession> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
-	const std::string m_opaque;
+	const std::basic_string<unsigned char> m_opaque;
 
 	const std::string m_host;
 	const unsigned m_port;
@@ -130,7 +130,7 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string opaque, std::string host, unsigned port, bool use_ssl)
+	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> opaque, std::string host, unsigned port, bool use_ssl)
 		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
