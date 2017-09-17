@@ -73,16 +73,16 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 
 	const auto client = SecondaryConnector::get_client();
 	if(client){
-		auto uuid = client->channel_connect(virtual_shared_from_this<ProxySession>(), "www.baidu.com", 80, false);
-		client->channel_send(uuid, (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Keep-Alive\r\n\r\n");
-		client->channel_shutdown(uuid, false);
+		auto uuid = client->channel_connect(virtual_shared_from_this<ProxySession>(), "options??", "www.baidu.com", 80, false);
+		client->channel_send(uuid, (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n");
+//		client->channel_shutdown(uuid, false);
 	}
 }
 
-void ProxySession::on_sync_opened(const Poseidon::Uuid &channel_uuid){
+void ProxySession::on_sync_opened(const Poseidon::Uuid &channel_uuid, const char *options){
 	PROFILE_ME;
 
-	LOG_POSEIDON_FATAL("OPENED: ", channel_uuid);
+	LOG_POSEIDON_FATAL("OPENED: ", channel_uuid, ": ", options);
 }
 void ProxySession::on_sync_established(const Poseidon::Uuid &channel_uuid){
 	PROFILE_ME;

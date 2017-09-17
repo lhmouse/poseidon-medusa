@@ -43,7 +43,7 @@ public:
 		return m_session_uuid;
 	}
 
-	void on_sync_opened(const Poseidon::Uuid &channel_uuid);
+	void on_sync_opened(const Poseidon::Uuid &channel_uuid, const char *options);
 	void on_sync_established(const Poseidon::Uuid &channel_uuid);
 	void on_sync_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
 	void on_sync_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg);

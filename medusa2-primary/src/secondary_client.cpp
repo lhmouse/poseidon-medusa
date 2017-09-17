@@ -30,7 +30,7 @@ public:
 		return m_channel_uuid;
 	}
 
-	void on_opened(){
+	void on_opened(const char *options){
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
@@ -38,7 +38,7 @@ public:
 			return;
 		}
 
-		proxy_session->on_sync_opened(m_channel_uuid);
+		proxy_session->on_sync_opened(m_channel_uuid, options);
 	}
 	void on_established(){
 		PROFILE_ME;
@@ -50,7 +50,7 @@ public:
 
 		proxy_session->on_sync_established(m_channel_uuid);
 	}
-	void on_received(Poseidon::Move<std::basic_string<unsigned char> > segment){
+	void on_received(std::basic_string<unsigned char> segment){
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
@@ -60,7 +60,7 @@ public:
 
 		proxy_session->on_sync_received(m_channel_uuid, STD_MOVE(segment));
 	}
-	void on_closed(long err_code, Poseidon::Move<std::string> err_msg){
+	void on_closed(long err_code, std::string err_msg){
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
@@ -103,6 +103,8 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 
 		Poseidon::Uuid session_uuid;
 		DEBUG_THROW_ASSERT(msg.opaque.copy(session_uuid.data(), 16, 0) == 16);
+		const AUTO(options, reinterpret_cast<const char *>(msg.opaque.c_str() + 16));
+
 		const AUTO(proxy_session, ProxyServer::get_session(session_uuid));
 		if(!proxy_session){
 			LOG_MEDUSA2_DEBUG("ProxySession is gone: channel_uuid = ", channel_uuid, ", session_uuid = ", session_uuid);
@@ -112,7 +114,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<SecondaryClient>(), channel_uuid, proxy_session));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
-		channel->on_opened();
+		channel->on_opened(options);
 		(void)it;
 	}
 	ON_MESSAGE(Protocol::SP_Established, msg){
@@ -175,13 +177,14 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-Poseidon::Uuid SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl){
+Poseidon::Uuid SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const char *options, std::string host, unsigned port, bool use_ssl){
 	PROFILE_ME;
 
 	const AUTO(channel_uuid, Poseidon::Uuid::random());
 
 	std::basic_string<unsigned char> opaque;
 	opaque.append(proxy_session->get_session_uuid().data(), 16);
+	opaque.append(reinterpret_cast<const unsigned char *>(options));
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = channel_uuid;

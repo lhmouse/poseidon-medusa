@@ -362,7 +362,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 
 		if(!m_timer){
 			LOG_MEDUSA2_DEBUG("Creating timer: remote = ", get_remote_info());
-			m_timer = Poseidon::TimerDaemon::register_timer(0, 1000, boost::bind(&sync_timer_proc, virtual_weak_from_this<PrimarySession>()));
+			m_timer = Poseidon::TimerDaemon::register_timer(0, 200, boost::bind(&sync_timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
 		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), msg.port, msg.use_ssl));
