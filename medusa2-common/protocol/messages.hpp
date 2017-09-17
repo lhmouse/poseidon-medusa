@@ -7,7 +7,7 @@
 namespace Medusa2 {
 namespace Protocol {
 
-#define MESSAGE_NAME   PS_Open
+#define MESSAGE_NAME   PS_Connect
 #define MESSAGE_ID     3001
 #define MESSAGE_FIELDS \
 	FIELD_FIXED        (channel_uuid, 16)	\
@@ -34,7 +34,7 @@ namespace Protocol {
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 
-#define MESSAGE_NAME   PS_Close
+#define MESSAGE_NAME   PS_Shutdown
 #define MESSAGE_ID     3004
 #define MESSAGE_FIELDS \
 	FIELD_FIXED        (channel_uuid, 16)	\

@@ -7,7 +7,8 @@ namespace Medusa2 {
 namespace Primary {
 
 class SecondaryConnector {
-	static boost::shared_ptr<SecondaryClient> get();
+public:
+	static boost::shared_ptr<SecondaryClient> get_client();
 
 private:
 	SecondaryConnector();

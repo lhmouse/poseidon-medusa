@@ -111,13 +111,14 @@ private:
 	boost::shared_ptr<const Poseidon::JobPromiseContainer<Poseidon::SockAddr> > m_promised_sock_addr;
 	bool m_establishment_notified;
 	Poseidon::StreamBuffer m_send_queue;
+	bool m_shutdown;
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
 	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> opaque, std::string host, unsigned port, bool use_ssl)
 		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
-		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_fetch_client()
+		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown(false), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 
@@ -168,6 +169,9 @@ private:
 	}
 
 public:
+	boost::shared_ptr<PrimarySession> get_parent() const {
+		return m_weak_parent.lock();
+	}
 	const Poseidon::Uuid &get_channel_uuid() const {
 		return m_channel_uuid;
 	}
@@ -186,12 +190,10 @@ public:
 	void shutdown(bool no_linger) NOEXCEPT {
 		PROFILE_ME;
 
-		if(m_fetch_client){
-			if(no_linger){
-				m_fetch_client->force_shutdown();
-			} else {
-				m_fetch_client->shutdown_write();
-			}
+		m_shutdown = true;
+
+		if(no_linger && m_fetch_client){
+			m_fetch_client->force_shutdown();
 		}
 	}
 
@@ -236,6 +238,9 @@ public:
 			Poseidon::StreamBuffer send_queue;
 			send_queue.swap(m_send_queue);
 			m_fetch_client->send(STD_MOVE(send_queue));
+		}
+		if(m_shutdown){
+			m_fetch_client->shutdown_write();
 		}
 		if(!m_fetch_client->is_connected_or_closed()){
 			LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
@@ -326,7 +331,8 @@ void PrimarySession::on_sync_timer(){
 		const AUTO(channel_uuid, it->first);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
 		const AUTO(channel, it->second);
-		erase_it = channel->update();
+		const bool finished = channel->update();
+		erase_it = finished;
 	}
 
 	if(m_channels.empty()){

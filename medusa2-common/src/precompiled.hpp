@@ -19,6 +19,7 @@
 #include <poseidon/checked_arithmetic.hpp>
 #include <poseidon/buffer_streams.hpp>
 #include <poseidon/async_job.hpp>
+#include <poseidon/atomic.hpp>
 
 #ifdef POSEIDON_CXX11
 #  include <cstdint>

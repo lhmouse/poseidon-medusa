@@ -29,10 +29,10 @@ protected:
 	bool send(const Poseidon::Cbpp::MessageBase &msg);
 
 public:
-	Poseidon::Uuid open(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl);
-	void send(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
-	void acknowledge(const Poseidon::Uuid &channel_uuid, boost::uint64_t bytes_to_acknowledge);
-	void close(const Poseidon::Uuid &channel_uuid, bool no_linger) NOEXCEPT;
+	Poseidon::Uuid channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl);
+	void channel_send(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
+	void channel_acknowledge(const Poseidon::Uuid &channel_uuid, boost::uint64_t bytes_to_acknowledge);
+	void channel_shutdown(const Poseidon::Uuid &channel_uuid, bool no_linger) NOEXCEPT;
 };
 
 }

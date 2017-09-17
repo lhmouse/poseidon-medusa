@@ -5,10 +5,10 @@ namespace Medusa2 {
 namespace Protocol {
 
 // Primary -> Secondary
-class PS_Open;
+class PS_Connect;
 class PS_Send;
 class PS_Acknowledge;
-class PS_Close;
+class PS_Shutdown;
 
 // Secondary -> Primary
 class SP_Opened;

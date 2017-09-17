@@ -1,36 +1,49 @@
 #include "precompiled.hpp"
 #include "secondary_connector.hpp"
 #include "../mmain.hpp"
+#include <poseidon/mutex.hpp>
 #include <poseidon/singletons/timer_daemon.hpp>
 #include <poseidon/sock_addr.hpp>
 #include <poseidon/singletons/dns_daemon.hpp>
-
-#include "protocol/messages.hpp"
 
 namespace Medusa2 {
 namespace Primary {
 
 namespace {
-	boost::weak_ptr<SecondaryClient> g_client;
+	Poseidon::Mutex g_mutex;
+	boost::weak_ptr<const Poseidon::JobPromiseContainer<Poseidon::SockAddr> > g_weak_promised_sock_addr;
+	boost::weak_ptr<SecondaryClient> g_weak_client;
 
 	void reconnect_timer_proc(){
 		PROFILE_ME;
 
-		AUTO(client, g_client.lock());
+		Poseidon::Mutex::UniqueLock lock(g_mutex);
+		AUTO(client, g_weak_client.lock());
 		if(client){
 			return;
 		}
+		AUTO(promised_sock_addr, g_weak_promised_sock_addr.lock());
+		if(!promised_sock_addr){
+			const AUTO(host, get_config<std::string>("secondary_connector_host", "127.0.0.1"));
+			const AUTO(port, get_config<boost::uint16_t>("secondary_connector_port", 3805));
+			LOG_MEDUSA2_INFO("Connecting to secondary server: host:port = ", host, ":", port);
+			promised_sock_addr = Poseidon::DnsDaemon::enqueue_for_looking_up(host, port);
+			g_weak_promised_sock_addr = promised_sock_addr;
+		}
+		lock.unlock();
 
-		const AUTO(host, get_config<std::string>("secondary_connector_host", "127.0.0.1"));
-		const AUTO(port, get_config<boost::uint16_t>("secondary_connector_port", 3805));
-		const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
-		LOG_MEDUSA2_INFO("Connecting to secondary server: host:port = ", host, ":", port, ", use_ssl = ", use_ssl);
-		const AUTO(promised_sock_addr, Poseidon::DnsDaemon::enqueue_for_looking_up(host, port));
 		Poseidon::yield(promised_sock_addr);
-		client = boost::make_shared<SecondaryClient>(promised_sock_addr->get(), use_ssl);
-		client->go_resident();
-		client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
-		g_client = client;
+
+		lock.lock();
+		client = g_weak_client.lock();
+		if(!client){
+			const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
+			LOG_MEDUSA2_INFO(">> use_ssl = ", use_ssl);
+			client = boost::make_shared<SecondaryClient>(promised_sock_addr->get(), use_ssl);
+			client->go_resident();
+			client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
+			g_weak_client = client;
+		}
 	}
 
 	MODULE_RAII(handles){
@@ -40,8 +53,9 @@ namespace {
 	}
 }
 
-boost::shared_ptr<SecondaryClient> SecondaryConnector::get(){
-	return g_client.lock();
+boost::shared_ptr<SecondaryClient> SecondaryConnector::get_client(){
+	const Poseidon::Mutex::UniqueLock lock(g_mutex);
+	return g_weak_client.lock();
 }
 
 }

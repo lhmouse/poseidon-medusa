@@ -1,6 +1,7 @@
 #include "precompiled.hpp"
 #include "proxy_session.hpp"
 #include "singletons/proxy_server.hpp"
+#include "singletons/secondary_connector.hpp"
 #include <poseidon/http/status_codes.hpp>
 #include <poseidon/http/exception.hpp>
 #include <poseidon/http/server_reader.hpp>
@@ -70,27 +71,33 @@ void ProxySession::on_close(int err_code){
 void ProxySession::on_receive(Poseidon::StreamBuffer data){
 	PROFILE_ME;
 
+	const auto client = SecondaryConnector::get_client();
+	if(client){
+		auto uuid = client->channel_connect(virtual_shared_from_this<ProxySession>(), "www.baidu.com", 80, false);
+		client->channel_send(uuid, (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Keep-Alive\r\n\r\n");
+		client->channel_shutdown(uuid, false);
+	}
 }
 
-void ProxySession::on_sync_opened(){
+void ProxySession::on_sync_opened(const Poseidon::Uuid &channel_uuid){
 	PROFILE_ME;
 
-	
+	LOG_POSEIDON_FATAL("OPENED: ", channel_uuid);
 }
-void ProxySession::on_sync_established(){
+void ProxySession::on_sync_established(const Poseidon::Uuid &channel_uuid){
 	PROFILE_ME;
 
-	
+	LOG_POSEIDON_FATAL("ESTABLISHED: ", channel_uuid);
 }
-void ProxySession::on_sync_received(std::basic_string<unsigned char> segment){
+void ProxySession::on_sync_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment){
 	PROFILE_ME;
 
-	
+	LOG_POSEIDON_ERROR("RECEIVED: ", channel_uuid, ": ", (const char *)segment.c_str());
 }
-void ProxySession::on_sync_closed(long err_code, const char *err_msg){
+void ProxySession::on_sync_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg){
 	PROFILE_ME;
 
-	
+	LOG_POSEIDON_FATAL("CLOSED: ", channel_uuid, ": ", err_code, " (", err_msg, ")");
 }
 
 }

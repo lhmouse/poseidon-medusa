@@ -43,10 +43,10 @@ public:
 		return m_session_uuid;
 	}
 
-	void on_sync_opened();
-	void on_sync_established();
-	void on_sync_received(std::basic_string<unsigned char> segment);
-	void on_sync_closed(long err_code, const char *err_msg);
+	void on_sync_opened(const Poseidon::Uuid &channel_uuid);
+	void on_sync_established(const Poseidon::Uuid &channel_uuid);
+	void on_sync_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
+	void on_sync_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg);
 };
 
 }
