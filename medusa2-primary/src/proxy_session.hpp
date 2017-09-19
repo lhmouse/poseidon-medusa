@@ -5,28 +5,26 @@
 #include <poseidon/tcp_session_base.hpp>
 #include <poseidon/uuid.hpp>
 #include <poseidon/http/fwd.hpp>
+#include <bitset>
 
 namespace Medusa2 {
 namespace Primary {
 
 class ProxySession : public Poseidon::TcpSessionBase {
 private:
-	class RequestJobBase;
-	class HttpRequestHeaderJob;
-	class HttpRequestEntityJob;
-	class HttpRequestEndJob;
-	class HttpRequestErrorJob;
-	class HttpTunnelDataJob;
-
 	class RequestRewriter;
 	class ResponseRewriter;
+
+	class RequestJobBase;
+	class DataReceivedJob;
+	class ReadHupJob;
 
 private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
 
-	boost::scoped_ptr<RequestRewriter> m_request_rewriter;
-	boost::scoped_ptr<ResponseRewriter> m_response_rewriter;
+	boost::shared_ptr<RequestRewriter> m_request_rewriter;
+	boost::shared_ptr<ResponseRewriter> m_response_rewriter;
 
 public:
 	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info);
@@ -43,10 +41,10 @@ public:
 		return m_session_uuid;
 	}
 
-	void on_sync_opened(const Poseidon::Uuid &channel_uuid, const char *options);
-	void on_sync_established(const Poseidon::Uuid &channel_uuid);
-	void on_sync_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
-	void on_sync_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg);
+	void on_fetch_opened(const Poseidon::Uuid &channel_uuid, const std::bitset<32> &options);
+	void on_fetch_established(const Poseidon::Uuid &channel_uuid);
+	void on_fetch_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
+	void on_fetch_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg);
 };
 
 }
