@@ -14,6 +14,13 @@ namespace {
 	boost::weak_ptr<const Poseidon::JobPromiseContainer<Poseidon::SockAddr> > g_weak_promised_sock_addr;
 	boost::weak_ptr<SecondaryClient> g_weak_client;
 
+	Poseidon::StreamBuffer generate_dummy_payload(){
+		unsigned char data[0x110];
+		const unsigned size = 0x10 + Poseidon::random_uint32() % 0x100;
+		std::generate(data, data + 0x10, Poseidon::RandomBitGeneratorUint32());
+		return Poseidon::StreamBuffer(data, size);
+	}
+
 	void reconnect_timer_proc(){
 		PROFILE_ME;
 
@@ -40,8 +47,9 @@ namespace {
 			const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
 			LOG_MEDUSA2_INFO(">> use_ssl = ", use_ssl);
 			client = boost::make_shared<SecondaryClient>(promised_sock_addr->get(), use_ssl);
+			client->set_no_delay();
 			client->go_resident();
-			client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
+			client->send_control(Poseidon::Cbpp::ST_PONG, generate_dummy_payload());
 			g_weak_client = client;
 		}
 	}

@@ -225,9 +225,9 @@ public:
 				return true;
 			}
 			if(sock_addr.is_private()){
-				LOG_MEDUSA2_DEBUG("Connections to private addresses are disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::IpPort(sock_addr));
+				LOG_MEDUSA2_DEBUG("Connections to private addresses disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::IpPort(sock_addr));
 				m_err_code = Protocol::ERR_PRIVATE_ADDRESS_DISALLOWED;
-				m_err_msg  = "Connection to private addresses are disallowed";
+				m_err_msg  = "Connections to private addresses disallowed";
 				return true;
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
