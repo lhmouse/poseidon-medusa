@@ -14,6 +14,28 @@
 namespace Medusa2 {
 namespace Primary {
 
+class ProxySession::RequestPending : NONCOPYABLE {
+public:
+	enum {
+		OPTION_EARLY_FAILURE = 0,
+		OPTION_KEEP_ALIVE    = 1,
+		OPTION_TUNNEL        = 2,
+	};
+
+private:
+	std::bitset<32> m_options;
+
+	std::string m_host;
+	unsigned m_port;
+	bool m_use_ssl;
+	Poseidon::Http::RequestHeaders m_request_headers;
+	Poseidon::StreamBuffer m_entity;
+	Poseidon::OptionalMap m_chunked_trailer;
+	Poseidon::Http::ResponseHeaders m_failure_response_headers;
+
+public:
+};
+
 class ProxySession::RequestRewriter : public Poseidon::Http::ServerReader, public Poseidon::Http::ClientWriter {
 private:
 	const boost::weak_ptr<ProxySession> m_weak_session;
@@ -25,17 +47,19 @@ public:
 
 protected:
 	// ServerReader
-	void on_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length) OVERRIDE {
+	void on_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t /*content_length*/) OVERRIDE {
+		PROFILE_ME;
+
+		//const AUTO(session, boost::shared_ptr<ProxySession>(m_weak_session));
+
+		
+	}
+	void on_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
 		PROFILE_ME;
 
 		
 	}
-	void on_request_entity(boost::uint64_t entity_offset, Poseidon::StreamBuffer entity) OVERRIDE {
-		PROFILE_ME;
-
-		
-	}
-	bool on_request_end(boost::uint64_t content_length, Poseidon::OptionalMap headers) OVERRIDE {
+	bool on_request_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers) OVERRIDE {
 		PROFILE_ME;
 
 		return true;
@@ -60,17 +84,17 @@ public:
 
 protected:
 	// ClientReader
-	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t content_length) OVERRIDE {
+	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
 		PROFILE_ME;
 
 		
 	}
-	void on_response_entity(boost::uint64_t entity_offset, Poseidon::StreamBuffer entity) OVERRIDE {
+	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
 		PROFILE_ME;
 
 		
 	}
-	bool on_response_end(boost::uint64_t content_length, Poseidon::OptionalMap headers) OVERRIDE {
+	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers) OVERRIDE {
 		PROFILE_ME;
 
 		return true;
@@ -135,7 +159,17 @@ protected:
 		if(!(session->m_request_rewriter)){
 			session->m_request_rewriter = boost::make_shared<RequestRewriter>(session);
 		}
-		session->m_request_rewriter->put_encoded_data(STD_MOVE(m_data));
+		try {
+			session->m_request_rewriter->put_encoded_data(STD_MOVE(m_data));
+		} catch(Poseidon::Http::Exception &e){
+			LOG_MEDUSA2_WARNING("Http::Exception thrown: remote = ", session->get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
+			// TODO session->send_default_and_shutdown(e.get_headers()
+			session->shutdown_read();
+		} catch(std::exception &e){
+			LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
+			// TODO session->send_default_and_shutdown(e.get_headers()
+			session->shutdown_read();
+		}
 	}
 };
 
@@ -189,10 +223,9 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("ProxySession received data: remote = ", get_remote_info(), ", data.size() = ", data.size());
 
-	if(!m_request_rewriter){
-		m_request_rewriter = boost::make_shared<RequestRewriter>(virtual_shared_from_this<ProxySession>());
-	}
-	m_request_rewriter->put_encoded_data(STD_MOVE(data), true); // Leave GET parameters alone in the request URI.
+	Poseidon::JobDispatcher::enqueue(
+		boost::make_shared<DataReceivedJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(data)),
+		VAL_INIT);
 }
 
 void ProxySession::on_fetch_opened(const Poseidon::Uuid &channel_uuid, const std::bitset<32> &options){
