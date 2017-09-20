@@ -105,7 +105,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		DEBUG_THROW_ASSERT(msg.opaque.copy(session_uuid.data(), 16, 0) == 16);
 		std::bitset<32> options;
 		boost::uint32_t options_be;
-		DEBUG_THROW_ASSERT(msg.opaque.copy(reinterpret_cast<unsigned char (&)[]>(options_be), 4, 16) == 4);
+		DEBUG_THROW_ASSERT(msg.opaque.copy(reinterpret_cast<unsigned char *>(&options_be), 4, 16) == 4);
 		options = Poseidon::load_be(options_be);
 
 		const AUTO(proxy_session, ProxyServer::get_session(session_uuid));
@@ -193,7 +193,7 @@ Poseidon::Uuid SecondaryClient::channel_connect(const boost::shared_ptr<ProxySes
 	opaque.append(session_uuid.data(), 16);
 	boost::uint32_t options_be;
 	Poseidon::store_be(options_be, options.to_ulong());
-	opaque.append(reinterpret_cast<unsigned char (&)[]>(options_be), 4);
+	opaque.append(reinterpret_cast<unsigned char *>(&options_be), 4);
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = channel_uuid;
