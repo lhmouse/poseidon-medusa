@@ -15,6 +15,7 @@ namespace Protocol {
 	FIELD_STRING       (host)	\
 	FIELD_VUINT        (port)	\
 	FIELD_VUINT        (use_ssl)	\
+	FIELD_VUINT        (no_delay)	\
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 

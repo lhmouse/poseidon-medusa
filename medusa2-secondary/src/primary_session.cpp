@@ -104,6 +104,7 @@ private:
 	const std::string m_host;
 	const unsigned m_port;
 	const bool m_use_ssl;
+	const bool m_no_delay;
 
 	long m_err_code;
 	std::string m_err_msg;
@@ -115,8 +116,8 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> opaque, std::string host, unsigned port, bool use_ssl)
-		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl)
+	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> opaque, std::string host, unsigned port, bool use_ssl, bool no_delay)
+		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown(false), m_fetch_client()
 	{
@@ -214,7 +215,8 @@ public:
 			return false;
 		}
 
-		if(!m_fetch_client){
+		AUTO(fetch_client, m_fetch_client);
+		if(!fetch_client){
 			Poseidon::SockAddr sock_addr;
 			try {
 				sock_addr = m_promised_sock_addr->get();
@@ -231,23 +233,27 @@ public:
 				return true;
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
-			m_fetch_client = boost::make_shared<FetchClient>(sock_addr, m_use_ssl);
-			m_fetch_client->go_resident();
+			fetch_client = boost::make_shared<FetchClient>(sock_addr, m_use_ssl);
+			if(m_no_delay){
+				fetch_client->set_no_delay();
+			}
+			fetch_client->go_resident();
+			m_fetch_client = fetch_client;
 		}
 		if(!m_send_queue.empty()){
 			Poseidon::StreamBuffer send_queue;
 			send_queue.swap(m_send_queue);
-			m_fetch_client->send(STD_MOVE(send_queue));
+			fetch_client->send(STD_MOVE(send_queue));
 		}
 		if(m_shutdown){
-			m_fetch_client->shutdown_write();
+			fetch_client->shutdown_write();
 		}
-		if(!m_fetch_client->is_connected_or_closed()){
+		if(!fetch_client->is_connected_or_closed()){
 			LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
 			return false;
 		}
 
-		if(!m_establishment_notified && m_fetch_client->was_established_at_all()){
+		if(!m_establishment_notified && fetch_client->was_established_at_all()){
 			m_establishment_notified = true;
 
 			Protocol::SP_Established msg;
@@ -257,8 +263,8 @@ public:
 
 		bool no_more_data;
 		for(;;){
-			no_more_data = m_fetch_client->has_been_shutdown_read();
-			AUTO(segment, m_fetch_client->cut_recv_queue());
+			no_more_data = fetch_client->has_been_shutdown_read();
+			AUTO(segment, fetch_client->cut_recv_queue());
 			if(segment.empty()){
 				break;
 			}
@@ -272,7 +278,7 @@ public:
 			return false;
 		}
 
-		const int syserrno = m_fetch_client->get_syserrno();
+		const int syserrno = fetch_client->get_syserrno();
 		switch(syserrno){
 		case 0:
 			m_err_code = Protocol::ERR_SUCCESS;
@@ -365,7 +371,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 200, boost::bind(&sync_timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), msg.port, msg.use_ssl));
+		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
 		(void)it;
