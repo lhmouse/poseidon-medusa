@@ -37,8 +37,9 @@ public:
 		if(!proxy_session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
 
-		proxy_session->on_fetch_opened(m_channel_uuid, options);
+		proxy_session->on_fetch_opened(options);
 	}
 	void on_established(){
 		PROFILE_ME;
@@ -47,8 +48,9 @@ public:
 		if(!proxy_session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
 
-		proxy_session->on_fetch_established(m_channel_uuid);
+		proxy_session->on_fetch_established();
 	}
 	void on_received(std::basic_string<unsigned char> segment){
 		PROFILE_ME;
@@ -57,8 +59,9 @@ public:
 		if(!proxy_session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
 
-		proxy_session->on_fetch_received(m_channel_uuid, STD_MOVE(segment));
+		proxy_session->on_fetch_received(STD_MOVE(segment));
 	}
 	void on_closed(long err_code, std::string err_msg){
 		PROFILE_ME;
@@ -67,8 +70,9 @@ public:
 		if(!proxy_session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
 
-		proxy_session->on_fetch_closed(m_channel_uuid, err_code, STD_MOVE(err_msg));
+		proxy_session->on_fetch_closed(err_code, STD_MOVE(err_msg));
 	}
 };
 
@@ -101,16 +105,14 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
-		Poseidon::Uuid session_uuid;
-		DEBUG_THROW_ASSERT(msg.opaque.copy(session_uuid.data(), 16, 0) == 16);
 		std::bitset<32> options;
 		boost::uint32_t options_be;
-		DEBUG_THROW_ASSERT(msg.opaque.copy(reinterpret_cast<unsigned char *>(&options_be), 4, 16) == 4);
+		DEBUG_THROW_ASSERT(msg.opaque.copy(reinterpret_cast<unsigned char *>(&options_be), 4, 0) == 4);
 		options = Poseidon::load_be(options_be);
 
-		const AUTO(proxy_session, ProxyServer::get_session(session_uuid));
+		const AUTO(proxy_session, ProxyServer::get_session(channel_uuid));
 		if(!proxy_session){
-			LOG_MEDUSA2_DEBUG("ProxySession is gone: channel_uuid = ", channel_uuid, ", session_uuid = ", session_uuid);
+			LOG_MEDUSA2_DEBUG("ProxySession is gone: channel_uuid = ", channel_uuid);
 			channel_shutdown(channel_uuid, true);
 			break;
 		}
@@ -180,53 +182,44 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-Poseidon::Uuid SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl){
+void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl){
 	PROFILE_ME;
 
-	const AUTO(channel_uuid, Poseidon::Uuid::random());
-
 	std::basic_string<unsigned char> opaque;
-	opaque.reserve(256);
-
-	Poseidon::Uuid session_uuid;
-	session_uuid = proxy_session->get_session_uuid();
-	opaque.append(session_uuid.data(), 16);
 	boost::uint32_t options_be;
 	Poseidon::store_be(options_be, options.to_ulong());
 	opaque.append(reinterpret_cast<unsigned char *>(&options_be), 4);
 
 	Protocol::PS_Connect msg;
-	msg.channel_uuid = channel_uuid;
+	msg.channel_uuid = proxy_session->get_session_uuid();
 	msg.opaque       = STD_MOVE(opaque);
 	msg.host         = STD_MOVE(host);
 	msg.port         = port;
 	msg.use_ssl      = use_ssl;
 	send(msg);
-
-	return channel_uuid;
 }
-void SecondaryClient::channel_send(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment){
+void SecondaryClient::channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment){
 	PROFILE_ME;
 
 	Protocol::PS_Send msg;
-	msg.channel_uuid = channel_uuid;
+	msg.channel_uuid = session_uuid;
 	msg.segment      = STD_MOVE(segment);
 	send(msg);
 }
-void SecondaryClient::channel_acknowledge(const Poseidon::Uuid &channel_uuid, boost::uint64_t bytes_to_acknowledge){
+void SecondaryClient::channel_acknowledge(const Poseidon::Uuid &session_uuid, boost::uint64_t bytes_to_acknowledge){
 	PROFILE_ME;
 
 	Protocol::PS_Acknowledge msg;
-	msg.channel_uuid         = channel_uuid;
+	msg.channel_uuid         = session_uuid;
 	msg.bytes_to_acknowledge = bytes_to_acknowledge;
 	send(msg);
 }
-void SecondaryClient::channel_shutdown(const Poseidon::Uuid &channel_uuid, bool no_linger) NOEXCEPT
+void SecondaryClient::channel_shutdown(const Poseidon::Uuid &session_uuid, bool no_linger) NOEXCEPT
 try {
 	PROFILE_ME;
 
 	Protocol::PS_Shutdown msg;
-	msg.channel_uuid = channel_uuid;
+	msg.channel_uuid = session_uuid;
 	msg.no_linger    = no_linger;
 	send(msg);
 } catch(std::exception &e){

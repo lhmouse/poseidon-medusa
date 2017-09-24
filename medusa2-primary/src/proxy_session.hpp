@@ -25,13 +25,16 @@ private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
 
-	boost::container::deque<RequestPending> m_request_pending;
+	boost::container::deque<RequestPending> m_requests_pending;
 	boost::shared_ptr<RequestRewriter> m_request_rewriter;
 	boost::shared_ptr<ResponseRewriter> m_response_rewriter;
 
 public:
 	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info);
 	~ProxySession();
+
+private:
+	void update();
 
 protected:
 	void on_connect() OVERRIDE;
@@ -44,10 +47,10 @@ public:
 		return m_session_uuid;
 	}
 
-	void on_fetch_opened(const Poseidon::Uuid &channel_uuid, const std::bitset<32> &options);
-	void on_fetch_established(const Poseidon::Uuid &channel_uuid);
-	void on_fetch_received(const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> segment);
-	void on_fetch_closed(const Poseidon::Uuid &channel_uuid, long err_code, std::string err_msg);
+	void on_fetch_opened(const std::bitset<32> &options);
+	void on_fetch_established();
+	void on_fetch_received(std::basic_string<unsigned char> segment);
+	void on_fetch_closed(long err_code, std::string err_msg);
 };
 
 }
