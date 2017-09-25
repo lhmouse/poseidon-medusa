@@ -11,11 +11,11 @@ namespace Protocol {
 #define MESSAGE_ID     3001
 #define MESSAGE_FIELDS \
 	FIELD_FIXED        (channel_uuid, 16)	\
-	FIELD_BLOB         (opaque)	\
 	FIELD_STRING       (host)	\
 	FIELD_VUINT        (port)	\
 	FIELD_VUINT        (use_ssl)	\
 	FIELD_VUINT        (no_delay)	\
+	FIELD_FLEXIBLE     (opaque)	\
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 
@@ -47,7 +47,7 @@ namespace Protocol {
 #define MESSAGE_ID     4001
 #define MESSAGE_FIELDS \
 	FIELD_FIXED        (channel_uuid, 16)	\
-	FIELD_BLOB         (opaque)	\
+	FIELD_FLEXIBLE     (opaque)	\
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 

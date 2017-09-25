@@ -14,34 +14,11 @@
 namespace Medusa2 {
 namespace Primary {
 
-struct ProxySession::RequestPending {
-	enum {
-		STATUS_EARLY_FAILURE    = 0,
-		STATUS_CHANNEL_OPENED   = 1,
-		STATUS_CHANNEL_CLOSED   = 2,
-		STATUS_REQUEST_CHUNKED  = 3,
-		STATUS_RESPONSE_CHUNKED = 4,
-		STATUS_REQUEST_ENDED    = 5,
-		STATUS_RESPONSE_ENDED   = 6,
-	};
-
-	enum {
-		OPTION_KEEP_ALIVE = 0,
-		OPTION_TUNNEL     = 1,
-		OPTION_USE_SSL    = 2,
-		OPTION_NO_DELAY   = 3,
-	};
-
-	std::bitset<32> status;
-	Poseidon::Uuid channel_uuid;
-	Poseidon::Http::ResponseHeaders failure_headers;
-
-	std::bitset<32> options;
-	std::string host;
-	unsigned port;
-	Poseidon::Http::RequestHeaders request_headers;
-	Poseidon::StreamBuffer entity;
-	Poseidon::OptionalMap chunked_trailer;
+enum {
+	OPTION_KEEP_ALIVE = 0,
+	OPTION_TUNNEL     = 1,
+	OPTION_USE_SSL    = 2,
+	OPTION_NO_DELAY   = 3,
 };
 
 class ProxySession::RequestRewriter : public Poseidon::Http::ServerReader, public Poseidon::Http::ClientWriter {
@@ -228,7 +205,6 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) OVERRIDE {
 		PROFILE_ME;
 
-		session->m_request_rewriter.reset();
 		session->shutdown_write();
 	}
 };
@@ -262,7 +238,7 @@ void ProxySession::on_close(int err_code){
 	PROFILE_ME;
 	LOG_MEDUSA2_INFO("ProxySession connection closed: remote = ", get_remote_info(), ", err_code = ", err_code);
 
-	m_request_rewriter.reset();
+	//
 }
 void ProxySession::on_receive(Poseidon::StreamBuffer data){
 	PROFILE_ME;

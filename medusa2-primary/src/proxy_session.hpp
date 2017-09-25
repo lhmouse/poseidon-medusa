@@ -5,7 +5,6 @@
 #include <poseidon/tcp_session_base.hpp>
 #include <poseidon/uuid.hpp>
 #include <poseidon/http/fwd.hpp>
-#include <boost/container/deque.hpp>
 #include <bitset>
 
 namespace Medusa2 {
@@ -13,7 +12,6 @@ namespace Primary {
 
 class ProxySession : public Poseidon::TcpSessionBase {
 private:
-	class RequestPending;
 	class RequestRewriter;
 	class ResponseRewriter;
 
@@ -25,7 +23,6 @@ private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
 
-	boost::container::deque<RequestPending> m_requests_pending;
 	boost::shared_ptr<RequestRewriter> m_request_rewriter;
 	boost::shared_ptr<ResponseRewriter> m_response_rewriter;
 

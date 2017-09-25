@@ -99,7 +99,6 @@ class PrimarySession::Channel : NONCOPYABLE {
 private:
 	const boost::weak_ptr<PrimarySession> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
-	const std::basic_string<unsigned char> m_opaque;
 
 	const std::string m_host;
 	const unsigned m_port;
@@ -116,14 +115,14 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::basic_string<unsigned char> opaque, std::string host, unsigned port, bool use_ssl, bool no_delay)
-		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_opaque(STD_MOVE(opaque)), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
+	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque)
+		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown(false), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 
-		notify_opening();
+		notify_opening(STD_MOVE(opaque));
 	}
 	~Channel(){
 		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
@@ -133,7 +132,7 @@ public:
 	}
 
 private:
-	void notify_opening() NOEXCEPT {
+	void notify_opening(std::basic_string<unsigned char> opaque) NOEXCEPT {
 		PROFILE_ME;
 
 		const AUTO(parent, m_weak_parent.lock());
@@ -143,7 +142,7 @@ private:
 		try {
 			Protocol::SP_Opened msg;
 			msg.channel_uuid = get_channel_uuid();
-			msg.opaque       = m_opaque;
+			msg.opaque       = STD_MOVE(opaque);
 			parent->send(msg);
 		} catch(std::exception &e){
 			LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
@@ -371,7 +370,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 200, boost::bind(&sync_timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.opaque), STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay));
+		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay, STD_MOVE(msg.opaque)));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
 		(void)it;
