@@ -103,12 +103,8 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 //=============================================================================
 	ON_MESSAGE(Protocol::SP_Opened, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
-
-		std::bitset<32> options;
-		boost::uint32_t options_be;
-		DEBUG_THROW_ASSERT(msg.opaque.copy(reinterpret_cast<unsigned char *>(&options_be), 4, 0) == 4);
-		options = Poseidon::load_be(options_be);
+		const AUTO(options, std::bitset<32>(msg.opaque));
+		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid, ", options = ", options);
 
 		const AUTO(proxy_session, ProxyServer::get_session(channel_uuid));
 		if(!proxy_session){
@@ -185,14 +181,9 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl){
 	PROFILE_ME;
 
-	std::basic_string<unsigned char> opaque;
-	boost::uint32_t options_be;
-	Poseidon::store_be(options_be, options.to_ulong());
-	opaque.append(reinterpret_cast<unsigned char *>(&options_be), 4);
-
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = proxy_session->get_session_uuid();
-	msg.opaque       = STD_MOVE(opaque);
+	msg.opaque       = options.to_string<unsigned char>();
 	msg.host         = STD_MOVE(host);
 	msg.port         = port;
 	msg.use_ssl      = use_ssl;
