@@ -124,8 +124,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_WARNING("Channel not found: channel_uuid = ", channel_uuid);
-			channel_shutdown(channel_uuid, true);
+			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
@@ -138,9 +137,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_WARNING("Channel not found: channel_uuid = ", channel_uuid);
-			m_channels.erase(it);
-			channel_shutdown(channel_uuid, true);
+			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
@@ -153,7 +150,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_WARNING("Channel not found: channel_uuid = ", channel_uuid);
+			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, STD_MOVE_IDN(it->second));
@@ -178,7 +175,7 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl){
+void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl, bool no_delay){
 	PROFILE_ME;
 
 	Protocol::PS_Connect msg;
@@ -187,6 +184,7 @@ void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &pro
 	msg.host         = STD_MOVE(host);
 	msg.port         = port;
 	msg.use_ssl      = use_ssl;
+	msg.no_delay     = no_delay;
 	send(msg);
 }
 void SecondaryClient::channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment){

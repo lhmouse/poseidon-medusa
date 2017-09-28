@@ -89,6 +89,13 @@ bool ProxyServer::remove_session(volatile ProxySession *ptr) NOEXCEPT {
 }
 
 namespace {
+	inline boost::shared_ptr<const Poseidon::Http::AuthInfo> create_auth_info_optional(const std::vector<std::string> &auth){
+		if(auth.empty()){
+			return VAL_INIT;
+		}
+		return Poseidon::Http::create_auth_info(auth);
+	}
+
 	class ProxyTcpServer : public Poseidon::TcpServerBase {
 	private:
 		const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
@@ -96,7 +103,7 @@ namespace {
 	public:
 		ProxyTcpServer(const std::string &bind, unsigned port, const std::string &cert, const std::string &pkey, const std::vector<std::string> &auth)
 			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), cert.c_str(), pkey.c_str())
-			, m_auth_info(Poseidon::Http::create_auth_info(auth))
+			, m_auth_info(create_auth_info_optional(auth))
 		{ }
 		~ProxyTcpServer(){ }
 
