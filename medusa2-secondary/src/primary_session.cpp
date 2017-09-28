@@ -115,67 +115,40 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque)
+	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string host, unsigned port, bool use_ssl, bool no_delay,
+		std::basic_string<unsigned char> opaque)
 		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
-		, m_err_code(Protocol::ERR_INTERNAL_ERROR), m_err_msg()
+		, m_err_code(Protocol::ERR_CONNECTION_ABORTED), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown(false), m_fetch_client()
 	{
-		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
+		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
 
-		notify_opening(STD_MOVE(opaque));
+		Protocol::SP_Opened msg;
+		msg.channel_uuid = m_channel_uuid;
+		msg.opaque       = STD_MOVE(opaque);
+		parent->send(msg);
 	}
 	~Channel(){
-		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
+		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
 
 		shutdown(true);
-		notify_closure(m_err_code, STD_MOVE(m_err_msg));
-	}
-
-private:
-	void notify_opening(std::basic_string<unsigned char> opaque) NOEXCEPT {
-		PROFILE_ME;
 
 		const AUTO(parent, m_weak_parent.lock());
-		if(!parent){
-			return;
-		}
-		try {
-			Protocol::SP_Opened msg;
-			msg.channel_uuid = get_channel_uuid();
-			msg.opaque       = STD_MOVE(opaque);
-			parent->send(msg);
-		} catch(std::exception &e){
-			LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
-			parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
-		}
-	}
-	void notify_closure(long err_code, std::string err_msg) NOEXCEPT {
-		PROFILE_ME;
-
-		const AUTO(parent, m_weak_parent.lock());
-		if(!parent){
-			return;
-		}
-		try {
-			Protocol::SP_Closed msg;
-			msg.channel_uuid = get_channel_uuid();
-			msg.err_code     = err_code;
-			msg.err_msg      = STD_MOVE(err_msg);
-			parent->send(msg);
-		} catch(std::exception &e){
-			LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
-			parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		if(parent){
+			try {
+				Protocol::SP_Closed msg;
+				msg.channel_uuid = m_channel_uuid;
+				msg.err_code     = m_err_code;
+				msg.err_msg      = m_err_msg;
+				parent->send(msg);
+			} catch(std::exception &e){
+				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+				parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+			}
 		}
 	}
 
 public:
-	boost::shared_ptr<PrimarySession> get_parent() const {
-		return m_weak_parent.lock();
-	}
-	const Poseidon::Uuid &get_channel_uuid() const {
-		return m_channel_uuid;
-	}
-
 	void send(const void *data, std::size_t size){
 		PROFILE_ME;
 
@@ -184,16 +157,19 @@ public:
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
 		PROFILE_ME;
 
-		DEBUG_THROW_ASSERT(m_fetch_client);
-		m_fetch_client->acknowledge(bytes_to_acknowledge);
+		const AUTO(fetch_client, m_fetch_client);
+		DEBUG_THROW_ASSERT(fetch_client);
+
+		fetch_client->acknowledge(bytes_to_acknowledge);
 	}
 	void shutdown(bool no_linger) NOEXCEPT {
 		PROFILE_ME;
 
 		m_shutdown = true;
 
-		if(no_linger && m_fetch_client){
-			m_fetch_client->force_shutdown();
+		const AUTO(fetch_client, m_fetch_client);
+		if(no_linger && fetch_client){
+			fetch_client->force_shutdown();
 		}
 	}
 
@@ -256,7 +232,7 @@ public:
 			m_establishment_notified = true;
 
 			Protocol::SP_Established msg;
-			msg.channel_uuid = get_channel_uuid();
+			msg.channel_uuid = m_channel_uuid;
 			parent->send(msg);
 		}
 
@@ -268,7 +244,7 @@ public:
 				break;
 			}
 			Protocol::SP_Received msg;
-			msg.channel_uuid = get_channel_uuid();
+			msg.channel_uuid = m_channel_uuid;
 			msg.segment      = STD_MOVE(segment);
 			parent->send(msg);
 		}
@@ -307,15 +283,7 @@ void PrimarySession::sync_timer_proc(const boost::weak_ptr<PrimarySession> &weak
 	if(!session){
 		return;
 	}
-	try {
-		session->on_sync_timer();
-	} catch(Poseidon::Cbpp::Exception &e){
-		LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", session->get_remote_info(), ", code = ", e.get_code(), ", what = ", e.what());
-		session->shutdown(e.get_code(), e.what());
-	} catch(std::exception &e){
-		LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
-		session->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
-	}
+	session->on_sync_timer();
 }
 
 PrimarySession::PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket)
@@ -327,7 +295,8 @@ PrimarySession::~PrimarySession(){
 	LOG_MEDUSA2_INFO("PrimarySession destructor: remote = ", get_remote_info());
 }
 
-void PrimarySession::on_sync_timer(){
+void PrimarySession::on_sync_timer()
+try {
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("Timer: remote = ", get_remote_info());
 
@@ -336,14 +305,19 @@ void PrimarySession::on_sync_timer(){
 		const AUTO(channel_uuid, it->first);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
 		const AUTO(channel, it->second);
-		const bool finished = channel->update();
-		erase_it = finished;
+		erase_it = channel->update();
 	}
 
 	if(m_channels.empty()){
 		LOG_MEDUSA2_DEBUG("Destroying timer: remote = ", get_remote_info());
 		m_timer.reset();
 	}
+} catch(Poseidon::Cbpp::Exception &e){
+	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", code = ", e.get_code(), ", what = ", e.what());
+	shutdown(e.get_code(), e.what());
+} catch(std::exception &e){
+	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
+	shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
 }
 void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
 	PROFILE_ME;
