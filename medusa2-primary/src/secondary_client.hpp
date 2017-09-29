@@ -16,6 +16,7 @@ class ProxySession;
 class SecondaryClient : public Poseidon::Cbpp::Client {
 private:
 	class Channel;
+	class CloseJob;
 
 private:
 	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<Channel> > m_channels;
@@ -25,6 +26,7 @@ public:
 	~SecondaryClient();
 
 protected:
+	void on_close(int err_code) OVERRIDE;
 	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
 
 	bool send(const Poseidon::Cbpp::MessageBase &msg);

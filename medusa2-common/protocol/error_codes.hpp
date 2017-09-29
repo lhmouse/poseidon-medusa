@@ -24,6 +24,7 @@ namespace ErrorCodes {
 		ERR_CONNECTION_RESET_BY_PEER          = 9006,
 		ERR_CONNECTION_ABORTED                = 9007,
 		ERR_SECONDARY_SERVER_TIMED_OUT        = 9008,
+		ERR_SECONDARY_SERVER_CONNECTION_LOST  = 9009,
 	};
 }
 using namespace ErrorCodes;

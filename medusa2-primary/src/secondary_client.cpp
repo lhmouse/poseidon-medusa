@@ -6,6 +6,8 @@
 #include "protocol/error_codes.hpp"
 #include "singletons/proxy_server.hpp"
 #include <poseidon/cbpp/exception.hpp>
+#include <poseidon/job_base.hpp>
+#include <poseidon/singletons/job_dispatcher.hpp>
 
 namespace Medusa2 {
 namespace Primary {
@@ -14,22 +16,26 @@ class SecondaryClient::Channel : NONCOPYABLE {
 private:
 	const boost::weak_ptr<SecondaryClient> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
-	const boost::weak_ptr<ProxySession> m_weak_proxy_session;
+
+	boost::weak_ptr<ProxySession> m_weak_proxy_session;
 
 public:
 	Channel(const boost::shared_ptr<SecondaryClient> &parent, const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<ProxySession> &proxy_session)
 		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_weak_proxy_session(proxy_session)
-	{ }
-	~Channel(){ }
+	{
+		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
+	}
+	~Channel(){
+		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
+
+		const AUTO(proxy_session, m_weak_proxy_session.lock());
+		if(proxy_session){
+			LOG_MEDUSA2_WARNING("ProxySession was not shut down cleanly: channel_uuid = ", m_channel_uuid);
+			proxy_session->force_shutdown();
+		}
+	}
 
 public:
-	boost::shared_ptr<SecondaryClient> get_parent() const {
-		return m_weak_parent.lock();
-	}
-	const Poseidon::Uuid &get_channel_uuid() const {
-		return m_channel_uuid;
-	}
-
 	void on_opened(const std::bitset<32> &options){
 		PROFILE_ME;
 
@@ -37,7 +43,7 @@ public:
 		if(!proxy_session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
 		proxy_session->on_fetch_opened(options);
 	}
@@ -48,7 +54,7 @@ public:
 		if(!proxy_session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
 		proxy_session->on_fetch_established();
 	}
@@ -59,7 +65,7 @@ public:
 		if(!proxy_session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
 		proxy_session->on_fetch_received(STD_MOVE(segment));
 	}
@@ -67,12 +73,44 @@ public:
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
+		m_weak_proxy_session.reset();
 		if(!proxy_session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == get_channel_uuid());
+		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
 		proxy_session->on_fetch_closed(err_code, STD_MOVE(err_msg));
+	}
+};
+
+class SecondaryClient::CloseJob : public Poseidon::JobBase {
+private:
+	const boost::shared_ptr<SecondaryClient> m_client;
+
+public:
+	explicit CloseJob(const boost::shared_ptr<SecondaryClient> &client)
+		: m_client(client)
+	{ }
+
+private:
+	boost::weak_ptr<const void> get_category() const FINAL {
+		return m_client;
+	}
+	void perform() FINAL {
+		PROFILE_ME;
+
+		const AUTO_REF(client, m_client);
+		DEBUG_THROW_ASSERT(client);
+
+		for(AUTO(it, client->m_channels.begin()); it != client->m_channels.end(); ++it){
+			const AUTO(channel, it->second);
+			try {
+				channel->on_closed(Protocol::ERR_SECONDARY_SERVER_CONNECTION_LOST, "Lost connection to secondary server");
+			} catch(std::exception &e){
+				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			}
+		}
+		client->m_channels.clear();
 	}
 };
 
@@ -83,6 +121,16 @@ SecondaryClient::SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_s
 }
 SecondaryClient::~SecondaryClient(){
 	LOG_MEDUSA2_INFO("SecondaryClient destructor: remote = ", get_remote_info());
+}
+
+void SecondaryClient::on_close(int err_code){
+	PROFILE_ME;
+
+	Poseidon::JobDispatcher::enqueue(
+		boost::make_shared<CloseJob>(virtual_shared_from_this<SecondaryClient>()),
+		VAL_INIT);
+
+	return Poseidon::Cbpp::Client::on_close(err_code);
 }
 
 void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){

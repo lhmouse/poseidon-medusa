@@ -17,7 +17,7 @@ class PrimarySession::FetchClient : public Poseidon::TcpClientBase {
 private:
 	mutable Poseidon::Mutex m_mutex;
 	bool m_connected_or_closed;
-	bool m_established_at_all;
+	bool m_established_after_all;
 	Poseidon::StreamBuffer m_recv_queue;
 	boost::uint64_t m_queue_size;
 	int m_syserrno;
@@ -25,9 +25,8 @@ private:
 public:
 	FetchClient(const Poseidon::SockAddr &addr, bool use_ssl)
 		: Poseidon::TcpClientBase(addr, use_ssl, true)
-		, m_connected_or_closed(false), m_established_at_all(false), m_recv_queue(), m_queue_size(0), m_syserrno(ENOTCONN)
+		, m_connected_or_closed(false), m_established_after_all(false), m_recv_queue(), m_queue_size(0), m_syserrno(ENOTCONN)
 	{ }
-	~FetchClient(){ }
 
 protected:
 	void on_connect() OVERRIDE {
@@ -35,7 +34,7 @@ protected:
 
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		m_connected_or_closed = true;
-		m_established_at_all = true;
+		m_established_after_all = true;
 		m_syserrno = EPIPE;
 	}
 	void on_read_hup() OVERRIDE {
@@ -66,9 +65,9 @@ public:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		return m_connected_or_closed;
 	}
-	bool was_established_at_all() const {
+	bool was_established_after_all() const {
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		return m_established_at_all;
+		return m_established_after_all;
 	}
 	std::basic_string<unsigned char> cut_recv_queue(){
 		const AUTO(fragmentation_size, get_config<std::size_t>("fetch_fragmentation_size", 8192));
@@ -131,7 +130,11 @@ public:
 	~Channel(){
 		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
 
-		shutdown(true);
+		const AUTO(fetch_client, m_fetch_client);
+		if(fetch_client){
+			LOG_MEDUSA2_WARNING("FetchClient was not shut down cleanly: channel_uuid = ", m_channel_uuid);
+			fetch_client->force_shutdown();
+		}
 
 		const AUTO(parent, m_weak_parent.lock());
 		if(parent){
@@ -162,14 +165,18 @@ public:
 
 		fetch_client->acknowledge(bytes_to_acknowledge);
 	}
-	void shutdown(bool no_linger) NOEXCEPT {
+	void shutdown(bool no_linger){
 		PROFILE_ME;
 
 		m_shutdown = true;
 
 		const AUTO(fetch_client, m_fetch_client);
-		if(no_linger && fetch_client){
-			fetch_client->force_shutdown();
+		if(fetch_client){
+			if(no_linger){
+				fetch_client->force_shutdown();
+			} else {
+				fetch_client->shutdown_write();
+			}
 		}
 	}
 
@@ -178,20 +185,28 @@ public:
 
 		const AUTO(parent, m_weak_parent.lock());
 		if(!parent){
+			m_err_code = Protocol::ERR_CONNECTION_ABORTED;
+			m_err_msg  = "Lost connection to primary server";
 			return true;
-		}
-
-		if(!m_promised_sock_addr){
-			LOG_MEDUSA2_DEBUG("@@ DNS lookup: host:port = ", m_host, ":", m_port);
-			m_promised_sock_addr = Poseidon::DnsDaemon::enqueue_for_looking_up(m_host, m_port);
-		}
-		if(!m_promised_sock_addr->is_satisfied()){
-			LOG_MEDUSA2_TRACE("Waiting for DNS lookup: host:port = ", m_host, ":", m_port);
-			return false;
 		}
 
 		AUTO(fetch_client, m_fetch_client);
 		if(!fetch_client){
+			if(m_shutdown){
+				m_err_code = Protocol::ERR_CONNECTION_ABORTED;
+				m_err_msg  = "Connection was shut down prematurely";
+				return true;
+			}
+
+			// Perform DNS lookup.
+			if(!m_promised_sock_addr){
+				LOG_MEDUSA2_DEBUG("@@ DNS lookup: host:port = ", m_host, ":", m_port);
+				m_promised_sock_addr = Poseidon::DnsDaemon::enqueue_for_looking_up(m_host, m_port);
+			}
+			if(!m_promised_sock_addr->is_satisfied()){
+				LOG_MEDUSA2_TRACE("Waiting for DNS lookup: host:port = ", m_host, ":", m_port);
+				return false;
+			}
 			Poseidon::SockAddr sock_addr;
 			try {
 				sock_addr = m_promised_sock_addr->get();
@@ -208,6 +223,8 @@ public:
 				return true;
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
+
+			// Create the TCP client.
 			fetch_client = boost::make_shared<FetchClient>(sock_addr, m_use_ssl);
 			if(m_no_delay){
 				fetch_client->set_no_delay();
@@ -215,31 +232,38 @@ public:
 			fetch_client->go_resident();
 			m_fetch_client = fetch_client;
 		}
+
+		// Send some data, if any.
 		if(!m_send_queue.empty()){
 			Poseidon::StreamBuffer send_queue;
 			send_queue.swap(m_send_queue);
 			fetch_client->send(STD_MOVE(send_queue));
 		}
+		// Shut down the write side if requested, after all data have been sent.
 		if(m_shutdown){
 			fetch_client->shutdown_write();
 		}
+
 		if(!fetch_client->is_connected_or_closed()){
 			LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
 			return false;
 		}
-
-		if(!m_establishment_notified && fetch_client->was_established_at_all()){
+		// If a TCP connection was established, notify the primary server.
+		if(!m_establishment_notified){
+			if(fetch_client->was_established_after_all()){
+				Protocol::SP_Established msg;
+				msg.channel_uuid = m_channel_uuid;
+				parent->send(msg);
+			}
 			m_establishment_notified = true;
-
-			Protocol::SP_Established msg;
-			msg.channel_uuid = m_channel_uuid;
-			parent->send(msg);
 		}
 
+		// Read some data, if any.
 		bool no_more_data;
 		for(;;){
-			no_more_data = fetch_client->has_been_shutdown_read();
-			AUTO(segment, fetch_client->cut_recv_queue());
+			// ** DO NOT SWAP THESE TWO LINES!! **
+			no_more_data = fetch_client->has_been_shutdown_read(); // [1]
+			AUTO(segment, fetch_client->cut_recv_queue());         // [2]
 			if(segment.empty()){
 				break;
 			}
@@ -252,6 +276,10 @@ public:
 			LOG_MEDUSA2_TRACE("Waiting for more data: host:port = ", m_host, ":", m_port);
 			return false;
 		}
+		// Clear the client.
+		fetch_client->shutdown_write();
+		m_shutdown = true;
+		m_fetch_client.reset();
 
 		const int syserrno = fetch_client->get_syserrno();
 		switch(syserrno){
