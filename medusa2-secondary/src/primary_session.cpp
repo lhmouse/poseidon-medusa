@@ -110,7 +110,8 @@ private:
 	boost::shared_ptr<const Poseidon::JobPromiseContainer<Poseidon::SockAddr> > m_promised_sock_addr;
 	bool m_establishment_notified;
 	Poseidon::StreamBuffer m_send_queue;
-	bool m_shutdown;
+	bool m_shutdown_read;
+	bool m_shutdown_write;
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
@@ -118,7 +119,7 @@ public:
 		std::basic_string<unsigned char> opaque)
 		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_err_code(Protocol::ERR_CONNECTION_ABORTED), m_err_msg()
-		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown(false), m_fetch_client()
+		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
 
@@ -168,7 +169,10 @@ public:
 	void shutdown(bool no_linger){
 		PROFILE_ME;
 
-		m_shutdown = true;
+		if(no_linger){
+			m_shutdown_read = true;
+		}
+		m_shutdown_write = true;
 
 		const AUTO(fetch_client, m_fetch_client);
 		if(fetch_client){
@@ -192,7 +196,7 @@ public:
 
 		AUTO(fetch_client, m_fetch_client);
 		if(!fetch_client){
-			if(m_shutdown){
+			if(m_shutdown_read){
 				m_err_code = Protocol::ERR_CONNECTION_ABORTED;
 				m_err_msg  = "Connection was shut down prematurely";
 				return true;
@@ -240,7 +244,7 @@ public:
 			fetch_client->send(STD_MOVE(send_queue));
 		}
 		// Shut down the write side if requested, after all data have been sent.
-		if(m_shutdown){
+		if(m_shutdown_write){
 			fetch_client->shutdown_write();
 		}
 
@@ -277,8 +281,9 @@ public:
 			return false;
 		}
 		// Clear the client.
+		m_shutdown_read = true;
+		m_shutdown_write = true;
 		fetch_client->shutdown_write();
-		m_shutdown = true;
 		m_fetch_client.reset();
 
 		const int syserrno = fetch_client->get_syserrno();

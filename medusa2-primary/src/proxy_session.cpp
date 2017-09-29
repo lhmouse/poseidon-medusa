@@ -225,6 +225,12 @@ void ProxySession::on_connect(){
 	LOG_MEDUSA2_INFO("ProxySession connection established: remote = ", get_remote_info());
 
 	// TODO: blacklist
+	const auto client = SecondaryConnector::get_client();
+	if(client){
+		client->channel_connect(virtual_shared_from_this<ProxySession>(), 5, "www.baidu.com", 80, false, false);
+		client->channel_send(get_session_uuid(), (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Keep-Alive\r\n\r\n");
+		client->channel_shutdown(get_session_uuid(), false);
+	}
 }
 void ProxySession::on_read_hup(){
 	PROFILE_ME;
