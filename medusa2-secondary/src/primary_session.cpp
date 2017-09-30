@@ -1,6 +1,7 @@
 #include "precompiled.hpp"
 #include "primary_session.hpp"
 #include "mmain.hpp"
+#include "singletons/primary_server.hpp"
 #include "common/encryption.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/error_codes.hpp"
@@ -318,11 +319,13 @@ void PrimarySession::sync_timer_proc(const boost::weak_ptr<PrimarySession> &weak
 
 PrimarySession::PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket)
 	: Poseidon::Cbpp::Session(STD_MOVE(socket))
+	, m_session_uuid(Poseidon::Uuid::random())
 {
 	LOG_MEDUSA2_INFO("PrimarySession constructor: remote = ", get_remote_info());
 }
 PrimarySession::~PrimarySession(){
 	LOG_MEDUSA2_INFO("PrimarySession destructor: remote = ", get_remote_info());
+	PrimaryServer::remove_session(this);
 }
 
 void PrimarySession::on_sync_timer()
