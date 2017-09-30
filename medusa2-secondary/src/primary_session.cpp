@@ -174,12 +174,10 @@ public:
 		}
 		m_shutdown_write = true;
 
-		const AUTO(fetch_client, m_fetch_client);
-		if(fetch_client){
-			if(no_linger){
+		if(no_linger){
+			const AUTO(fetch_client, m_fetch_client);
+			if(fetch_client){
 				fetch_client->force_shutdown();
-			} else {
-				fetch_client->shutdown_write();
 			}
 		}
 	}
@@ -189,8 +187,6 @@ public:
 
 		const AUTO(parent, m_weak_parent.lock());
 		if(!parent){
-			m_err_code = Protocol::ERR_CONNECTION_ABORTED;
-			m_err_msg  = "Lost connection to primary server";
 			return true;
 		}
 
@@ -198,7 +194,7 @@ public:
 		if(!fetch_client){
 			if(m_shutdown_read){
 				m_err_code = Protocol::ERR_CONNECTION_ABORTED;
-				m_err_msg  = "Connection was shut down prematurely";
+				m_err_msg  = "Connection was aborted by the user";
 				return true;
 			}
 
@@ -223,7 +219,7 @@ public:
 			if(sock_addr.is_private()){
 				LOG_MEDUSA2_DEBUG("Connections to private addresses disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::IpPort(sock_addr));
 				m_err_code = Protocol::ERR_PRIVATE_ADDRESS_DISALLOWED;
-				m_err_msg  = "Connections to private addresses disallowed";
+				m_err_msg  = "Connections to private addresses are disallowed";
 				return true;
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
