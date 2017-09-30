@@ -69,7 +69,7 @@ public:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		return m_established_after_all;
 	}
-	std::basic_string<unsigned char> cut_recv_queue(){
+	std::basic_string<unsigned char> cut_recv_queue(bool *no_more_data){
 		const AUTO(fragmentation_size, get_config<std::size_t>("fetch_fragmentation_size", 8192));
 
 		std::basic_string<unsigned char> data;
@@ -77,6 +77,9 @@ public:
 
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		data.resize(m_recv_queue.get(&data[0], data.size()));
+		if(no_more_data){
+			*no_more_data = m_recv_queue.empty() && has_been_shutdown_read();
+		}
 		return data;
 	}
 	int get_syserrno() const {
@@ -261,9 +264,7 @@ public:
 		// Read some data, if any.
 		bool no_more_data;
 		for(;;){
-			// ** DO NOT SWAP THESE TWO LINES!! **
-			no_more_data = fetch_client->has_been_shutdown_read(); // [1]
-			AUTO(segment, fetch_client->cut_recv_queue());         // [2]
+			AUTO(segment, fetch_client->cut_recv_queue(&no_more_data));
 			if(segment.empty()){
 				break;
 			}
