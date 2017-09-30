@@ -6,7 +6,6 @@
 #include <poseidon/cbpp/client.hpp>
 #include <poseidon/uuid.hpp>
 #include <boost/container/flat_map.hpp>
-#include <bitset>
 
 namespace Medusa2 {
 namespace Primary {
@@ -32,7 +31,7 @@ protected:
 	bool send(const Poseidon::Cbpp::MessageBase &msg);
 
 public:
-	void channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl, bool no_delay);
+	void channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque);
 	void channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment);
 	void channel_acknowledge(const Poseidon::Uuid &session_uuid, boost::uint64_t bytes_to_acknowledge);
 	void channel_shutdown(const Poseidon::Uuid &session_uuid, bool no_linger) NOEXCEPT;

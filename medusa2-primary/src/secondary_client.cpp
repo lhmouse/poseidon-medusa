@@ -36,7 +36,7 @@ public:
 	}
 
 public:
-	void on_opened(const std::bitset<32> &options){
+	void on_opened(std::basic_string<unsigned char> opaque){
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
@@ -45,7 +45,7 @@ public:
 		}
 		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
-		proxy_session->on_fetch_opened(options);
+		proxy_session->on_fetch_opened(STD_MOVE(opaque));
 	}
 	void on_established(){
 		PROFILE_ME;
@@ -151,8 +151,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 //=============================================================================
 	ON_MESSAGE(Protocol::SP_Opened, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		const AUTO(options, std::bitset<32>(msg.opaque));
-		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid, ", options = ", options);
+		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
 		const AUTO(proxy_session, ProxyServer::get_session(channel_uuid));
 		if(!proxy_session){
@@ -163,7 +162,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<SecondaryClient>(), channel_uuid, proxy_session));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
-		channel->on_opened(options);
+		channel->on_opened(STD_MOVE(msg.opaque));
 		(void)it;
 	}
 	ON_MESSAGE(Protocol::SP_Established, msg){
@@ -223,16 +222,16 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, const std::bitset<32> &options, std::string host, unsigned port, bool use_ssl, bool no_delay){
+void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque){
 	PROFILE_ME;
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = proxy_session->get_session_uuid();
-	msg.opaque       = options.to_string<unsigned char>();
 	msg.host         = STD_MOVE(host);
 	msg.port         = port;
 	msg.use_ssl      = use_ssl;
 	msg.no_delay     = no_delay;
+	msg.opaque       = STD_MOVE(opaque);
 	send(msg);
 }
 void SecondaryClient::channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment){

@@ -5,7 +5,6 @@
 #include <poseidon/tcp_session_base.hpp>
 #include <poseidon/uuid.hpp>
 #include <poseidon/http/fwd.hpp>
-#include <bitset>
 
 namespace Medusa2 {
 namespace Primary {
@@ -44,7 +43,7 @@ public:
 		return m_session_uuid;
 	}
 
-	void on_fetch_opened(const std::bitset<32> &options);
+	void on_fetch_opened(std::basic_string<unsigned char> opaque);
 	void on_fetch_established();
 	void on_fetch_received(std::basic_string<unsigned char> segment);
 	void on_fetch_closed(long err_code, std::string err_msg);

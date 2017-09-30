@@ -227,7 +227,7 @@ void ProxySession::on_connect(){
 	// TODO: blacklist
 	const auto client = SecondaryConnector::get_client();
 	if(client){
-		client->channel_connect(virtual_shared_from_this<ProxySession>(), 5, "www.baidu.com", 80, false, false);
+		client->channel_connect(virtual_shared_from_this<ProxySession>(), "www.baidu.com", 80, false, false, (const unsigned char *)"opaque");
 		client->channel_send(get_session_uuid(), (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Keep-Alive\r\n\r\n");
 		client->channel_shutdown(get_session_uuid(), false);
 	}
@@ -255,10 +255,10 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 		VAL_INIT);
 }
 
-void ProxySession::on_fetch_opened(const std::bitset<32> &options){
+void ProxySession::on_fetch_opened(std::basic_string<unsigned char> opaque){
 	PROFILE_ME;
 
-	LOG_POSEIDON_FATAL("OPENED: ", get_session_uuid(), ": ", options);
+	LOG_POSEIDON_FATAL("OPENED: ", get_session_uuid(), ": ", (const char *)opaque.c_str());
 }
 void ProxySession::on_fetch_established(){
 	PROFILE_ME;
