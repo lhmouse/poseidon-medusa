@@ -282,7 +282,6 @@ public:
 		m_shutdown_read = true;
 		m_shutdown_write = true;
 		fetch_client->shutdown_write();
-		m_fetch_client.reset();
 
 		const int syserrno = fetch_client->get_syserrno();
 		switch(syserrno){
@@ -303,6 +302,7 @@ public:
 			break;
 		}
 		m_err_msg = Poseidon::get_error_desc_as_string(syserrno);
+		m_fetch_client.reset();
 		return true;
 	}
 };

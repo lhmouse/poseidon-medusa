@@ -15,10 +15,12 @@ namespace {
 	boost::weak_ptr<SecondaryClient> g_weak_client;
 
 	Poseidon::StreamBuffer generate_dummy_payload(){
-		unsigned char data[0x110];
+		Poseidon::StreamBuffer payload;
 		const unsigned size = 0x10 + Poseidon::random_uint32() % 0x100;
-		std::generate(data, data + 0x10, Poseidon::RandomBitGeneratorUint32());
-		return Poseidon::StreamBuffer(data, size);
+		for(unsigned i = 0; i < size; ++i){
+			payload.put(Poseidon::random_uint32());
+		}
+		return payload;
 	}
 
 	void reconnect_timer_proc(){

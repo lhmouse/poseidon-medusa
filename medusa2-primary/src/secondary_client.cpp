@@ -45,7 +45,7 @@ public:
 		}
 		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
-		proxy_session->on_fetch_opened(STD_MOVE(opaque));
+		proxy_session->on_sync_channel_opened(STD_MOVE(opaque));
 	}
 	void on_established(){
 		PROFILE_ME;
@@ -56,7 +56,7 @@ public:
 		}
 		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
-		proxy_session->on_fetch_established();
+		proxy_session->on_sync_channel_established();
 	}
 	void on_received(std::basic_string<unsigned char> segment){
 		PROFILE_ME;
@@ -67,19 +67,19 @@ public:
 		}
 		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
-		proxy_session->on_fetch_received(STD_MOVE(segment));
+		proxy_session->on_sync_channel_received(STD_MOVE(segment));
 	}
 	void on_closed(long err_code, std::string err_msg){
 		PROFILE_ME;
 
 		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		m_weak_proxy_session.reset();
 		if(!proxy_session){
 			return;
 		}
 		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
 
-		proxy_session->on_fetch_closed(err_code, STD_MOVE(err_msg));
+		proxy_session->on_sync_channel_closed(err_code, STD_MOVE(err_msg));
+		m_weak_proxy_session.reset();
 	}
 };
 

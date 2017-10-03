@@ -35,7 +35,6 @@ namespace {
 	}
 }
 
-
 boost::shared_ptr<ProxySession> ProxyServer::get_session(const Poseidon::Uuid &session_uuid){
 	PROFILE_ME;
 
