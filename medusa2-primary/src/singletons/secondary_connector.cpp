@@ -16,9 +16,10 @@ namespace {
 
 	Poseidon::StreamBuffer generate_dummy_payload(){
 		Poseidon::StreamBuffer payload;
+		payload.put(static_cast<unsigned char>(0));
 		const unsigned size = 0x10 + Poseidon::random_uint32() % 0x100;
 		for(unsigned i = 0; i < size; ++i){
-			payload.put(Poseidon::random_uint32());
+			payload.put(static_cast<unsigned char>(Poseidon::random_uint32()));
 		}
 		return payload;
 	}
@@ -51,7 +52,7 @@ namespace {
 			client = boost::make_shared<SecondaryClient>(promised_sock_addr->get(), use_ssl);
 			client->set_no_delay();
 			client->go_resident();
-			client->send_control(Poseidon::Cbpp::ST_PONG, generate_dummy_payload());
+			client->send_control(Poseidon::Cbpp::ST_PING, generate_dummy_payload());
 			g_weak_client = client;
 		}
 	}
