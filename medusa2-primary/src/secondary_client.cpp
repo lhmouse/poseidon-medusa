@@ -60,6 +60,62 @@ private:
 	}
 };
 
+SecondaryClient::AbstractChannel::AbstractChannel()
+	: m_weak_parent(), m_channel_uuid()
+{
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", this);
+}
+SecondaryClient::AbstractChannel::~AbstractChannel(){
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", this);
+}
+
+bool SecondaryClient::AbstractChannel::send(Poseidon::StreamBuffer data){
+	PROFILE_ME;
+
+	const AUTO(parent, m_weak_parent.lock());
+	if(!parent){
+		return false;
+	}
+
+	Protocol::PS_Send msg;
+	msg.channel_uuid = m_channel_uuid;
+	for(;;){
+		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
+		msg.segment.resize(fragmentation_size);
+
+		msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
+		if(msg.segment.empty()){
+			break;
+		}
+		if(!parent->send(msg)){
+			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
+			return false;
+		}
+	}
+	return true;
+}
+void SecondaryClient::AbstractChannel::shutdown(bool no_linger) NOEXCEPT {
+	PROFILE_ME;
+
+	const AUTO(parent, m_weak_parent.lock());
+	if(!parent){
+		return;
+	}
+
+	try {
+		Protocol::PS_Shutdown msg;
+		msg.channel_uuid = m_channel_uuid;
+		msg.no_linger    = no_linger;
+		if(!parent->send(msg)){
+			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
+			return;
+		}
+	} catch(std::exception &e){
+		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+	}
+}
+
 SecondaryClient::SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_ssl)
 	: Poseidon::Cbpp::Client(sock_addr, use_ssl)
 {
@@ -221,62 +277,6 @@ void SecondaryClient::attach_channel(const boost::shared_ptr<AbstractChannel> &c
 		}
 	}
 	LOG_MEDUSA2_DEBUG("Channel attached: channel = ", channel.get(), ", channel_uuid = ", channel_uuid, ", remote = ", get_remote_info());
-}
-
-SecondaryClient::AbstractChannel::AbstractChannel()
-	: m_weak_parent(), m_channel_uuid()
-{
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", this);
-}
-SecondaryClient::AbstractChannel::~AbstractChannel(){
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", this);
-}
-
-bool SecondaryClient::AbstractChannel::send(Poseidon::StreamBuffer data){
-	PROFILE_ME;
-
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
-		return false;
-	}
-
-	Protocol::PS_Send msg;
-	msg.channel_uuid = m_channel_uuid;
-	for(;;){
-		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
-		msg.segment.resize(fragmentation_size);
-
-		msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
-		if(msg.segment.empty()){
-			break;
-		}
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return false;
-		}
-	}
-	return true;
-}
-void SecondaryClient::AbstractChannel::shutdown(bool no_linger) NOEXCEPT {
-	PROFILE_ME;
-
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
-		return;
-	}
-
-	try {
-		Protocol::PS_Shutdown msg;
-		msg.channel_uuid = m_channel_uuid;
-		msg.no_linger    = no_linger;
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return;
-		}
-	} catch(std::exception &e){
-		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
-	}
 }
 
 }

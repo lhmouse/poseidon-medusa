@@ -243,14 +243,6 @@ void ProxySession::on_connect(){
 	LOG_MEDUSA2_INFO("ProxySession connection established: remote = ", get_remote_info());
 
 	// TODO: blacklist
-	const auto client = SecondaryConnector::get_client();
-	if(client){
-		const auto channel = boost::make_shared<Channel>();
-		client->attach_channel(channel, "www.baidu.com", 80, false, false);
-		channel->send(Poseidon::StreamBuffer("GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n"));
-		channel->shutdown(true);
-//		client->shutdown_read();
-	}
 }
 void ProxySession::on_read_hup(){
 	PROFILE_ME;
