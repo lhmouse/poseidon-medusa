@@ -18,6 +18,8 @@ private:
 	class DataReceivedJob;
 	class ReadHupJob;
 
+	class Channel;
+
 private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
@@ -39,11 +41,6 @@ public:
 	const Poseidon::Uuid &get_session_uuid() const NOEXCEPT {
 		return m_session_uuid;
 	}
-
-	void on_sync_channel_opened(std::basic_string<unsigned char> opaque);
-	void on_sync_channel_established();
-	void on_sync_channel_received(std::basic_string<unsigned char> segment);
-	void on_sync_channel_closed(long err_code, std::string err_msg);
 };
 
 }

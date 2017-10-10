@@ -209,6 +209,24 @@ protected:
 	}
 };
 
+class ProxySession::Channel : public SecondaryClient::ChannelBase {
+public:
+	Channel()
+		: SecondaryClient::ChannelBase()
+	{ }
+
+protected:
+	void on_sync_established() OVERRIDE {
+		LOG_POSEIDON_FATAL("ESTABLISHED");
+	}
+	void on_sync_received(Poseidon::StreamBuffer data) OVERRIDE {
+		LOG_POSEIDON_FATAL("RECEIVED: ", data);
+	}
+	void on_sync_closed(long err_code, std::string err_msg) OVERRIDE {
+		LOG_POSEIDON_FATAL("CLOSED: ", err_code, ": ", err_msg);
+	}
+};
+
 ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info)
 	: Poseidon::TcpSessionBase(STD_MOVE(socket))
 	, m_session_uuid(Poseidon::Uuid::random()), m_auth_info(STD_MOVE(auth_info))
@@ -227,10 +245,11 @@ void ProxySession::on_connect(){
 	// TODO: blacklist
 	const auto client = SecondaryConnector::get_client();
 	if(client){
-		client->channel_connect(virtual_shared_from_this<ProxySession>(), "www.baidu.com", 80, false, false, (const unsigned char *)"opaque");
-		client->channel_send(get_session_uuid(), (const unsigned char *)"GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n");
-		client->shutdown_read();
-//		client->channel_shutdown(get_session_uuid(), false);
+		const auto channel = boost::make_shared<Channel>();
+		client->attach_channel(channel, "www.baidu.com", 80, false, false);
+		channel->send(Poseidon::StreamBuffer("GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\n\r\n"));
+		channel->shutdown(true);
+//		client->shutdown_read();
 	}
 }
 void ProxySession::on_read_hup(){
@@ -254,27 +273,6 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 	Poseidon::JobDispatcher::enqueue(
 		boost::make_shared<DataReceivedJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(data)),
 		VAL_INIT);
-}
-
-void ProxySession::on_sync_channel_opened(std::basic_string<unsigned char> opaque){
-	PROFILE_ME;
-
-	LOG_POSEIDON_FATAL("OPENED: ", get_session_uuid(), ": ", (const char *)opaque.c_str());
-}
-void ProxySession::on_sync_channel_established(){
-	PROFILE_ME;
-
-	LOG_POSEIDON_FATAL("ESTABLISHED: ", get_session_uuid());
-}
-void ProxySession::on_sync_channel_received(std::basic_string<unsigned char> segment){
-	PROFILE_ME;
-
-	LOG_POSEIDON_ERROR("RECEIVED: ", get_session_uuid(), ": ", (const char *)segment.c_str());
-}
-void ProxySession::on_sync_channel_closed(long err_code, std::string err_msg){
-	PROFILE_ME;
-
-	LOG_POSEIDON_FATAL("CLOSED: ", get_session_uuid(), ": ", err_code, " (", err_msg, ")");
 }
 
 }

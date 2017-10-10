@@ -4,84 +4,12 @@
 #include "common/encryption.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/error_codes.hpp"
-#include "singletons/proxy_server.hpp"
 #include <poseidon/cbpp/exception.hpp>
 #include <poseidon/job_base.hpp>
 #include <poseidon/singletons/job_dispatcher.hpp>
 
 namespace Medusa2 {
 namespace Primary {
-
-class SecondaryClient::Channel : NONCOPYABLE {
-private:
-	const boost::weak_ptr<SecondaryClient> m_weak_parent;
-	const Poseidon::Uuid m_channel_uuid;
-
-	boost::weak_ptr<ProxySession> m_weak_proxy_session;
-
-public:
-	Channel(const boost::shared_ptr<SecondaryClient> &parent, const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<ProxySession> &proxy_session)
-		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_weak_proxy_session(proxy_session)
-	{
-		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
-	}
-	~Channel(){
-		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
-
-		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		if(proxy_session){
-			LOG_MEDUSA2_WARNING("ProxySession was not shut down cleanly: channel_uuid = ", m_channel_uuid);
-			proxy_session->force_shutdown();
-		}
-	}
-
-public:
-	void on_opened(std::basic_string<unsigned char> opaque){
-		PROFILE_ME;
-
-		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		if(!proxy_session){
-			return;
-		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
-
-		proxy_session->on_sync_channel_opened(STD_MOVE(opaque));
-	}
-	void on_established(){
-		PROFILE_ME;
-
-		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		if(!proxy_session){
-			return;
-		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
-
-		proxy_session->on_sync_channel_established();
-	}
-	void on_received(std::basic_string<unsigned char> segment){
-		PROFILE_ME;
-
-		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		if(!proxy_session){
-			return;
-		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
-
-		proxy_session->on_sync_channel_received(STD_MOVE(segment));
-	}
-	void on_closed(long err_code, std::string err_msg){
-		PROFILE_ME;
-
-		const AUTO(proxy_session, m_weak_proxy_session.lock());
-		if(!proxy_session){
-			return;
-		}
-		DEBUG_THROW_ASSERT(proxy_session->get_session_uuid() == m_channel_uuid);
-
-		proxy_session->on_sync_channel_closed(err_code, STD_MOVE(err_msg));
-		m_weak_proxy_session.reset();
-	}
-};
 
 class SecondaryClient::CloseJob : public Poseidon::JobBase {
 private:
@@ -102,15 +30,33 @@ private:
 		const AUTO_REF(client, m_client);
 		DEBUG_THROW_ASSERT(client);
 
-		for(AUTO(it, client->m_channels.begin()); it != client->m_channels.end(); ++it){
-			const AUTO(channel, it->second);
+		VALUE_TYPE(client->m_channels_pending) channels_pending;
+		{
+			const Poseidon::Mutex::UniqueLock lock(client->m_establishment_mutex);
+			channels_pending.swap(client->m_channels_pending);
+		}
+		LOG_MEDUSA2_TRACE("Number of channels pending: ", channels_pending.size());
+
+		VALUE_TYPE(client->m_channels_established) channels_established;
+		channels_established.swap(client->m_channels_established);
+		LOG_MEDUSA2_TRACE("Number of channels established: ", channels_established.size());
+
+		for(AUTO(it, channels_pending.begin()); it != channels_pending.end(); ++it){
+			const AUTO_REF(channel, it->second);
 			try {
-				channel->on_closed(Protocol::ERR_SECONDARY_SERVER_CONNECTION_LOST, "Lost connection to secondary server");
+				channel->on_sync_closed(Protocol::ERR_SECONDARY_SERVER_CONNECTION_LOST, "Lost connection to secondary server");
 			} catch(std::exception &e){
 				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
 			}
 		}
-		client->m_channels.clear();
+		for(AUTO(it, channels_established.begin()); it != channels_established.end(); ++it){
+			const AUTO_REF(channel, it->second);
+			try {
+				channel->on_sync_closed(Protocol::ERR_SECONDARY_SERVER_CONNECTION_LOST, "Lost connection to secondary server");
+			} catch(std::exception &e){
+				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			}
+		}
 	}
 };
 
@@ -153,57 +99,79 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
-		const AUTO(proxy_session, ProxyServer::get_session(channel_uuid));
-		if(!proxy_session){
-			LOG_MEDUSA2_DEBUG("ProxySession is gone: channel_uuid = ", channel_uuid);
-			channel_shutdown(channel_uuid, true);
+		boost::shared_ptr<ChannelBase> channel;
+		{
+			const Poseidon::Mutex::UniqueLock lock(m_establishment_mutex);
+			const AUTO(it, m_channels_pending.find(channel_uuid));
+			if(it != m_channels_pending.end()){
+				channel = STD_MOVE(it->second);
+				m_channels_pending.erase(it);
+			}
+		}
+		if(!channel){
+			LOG_MEDUSA2_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
+			send(Protocol::PS_Shutdown(channel_uuid, true));
 			break;
 		}
-		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<SecondaryClient>(), channel_uuid, proxy_session));
-		const AUTO(it, m_channels.emplace(channel_uuid, channel));
+		const AUTO(it, m_channels_established.emplace(channel_uuid, channel));
 
-		channel->on_opened(STD_MOVE(msg.opaque));
 		(void)it;
 	}
 	ON_MESSAGE(Protocol::SP_Established, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Tunnel established in channel: channel_uuid = ", channel_uuid);
+		LOG_MEDUSA2_DEBUG("Channel established: channel_uuid = ", channel_uuid);
 
-		const AUTO(it, m_channels.find(channel_uuid));
-		if(it == m_channels.end()){
+		const AUTO(it, m_channels_established.find(channel_uuid));
+		if(it == m_channels_established.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
 
-		channel->on_established();
+		try {
+			channel->on_sync_established();
+		} catch(std::exception &e){
+			LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			send(Protocol::PS_Shutdown(channel_uuid, true));
+		}
 	}
 	ON_MESSAGE(Protocol::SP_Received, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Data received from channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
 
-		const AUTO(it, m_channels.find(channel_uuid));
-		if(it == m_channels.end()){
+		const AUTO(it, m_channels_established.find(channel_uuid));
+		if(it == m_channels_established.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
 
-		channel->on_received(STD_MOVE(msg.segment));
+		try {
+			const AUTO(bytes_to_acknowledge, msg.segment.size());
+			channel->on_sync_received(Poseidon::StreamBuffer(msg.segment));
+			send(Protocol::PS_Acknowledge(channel_uuid, bytes_to_acknowledge));
+		} catch(std::exception &e){
+			LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			send(Protocol::PS_Shutdown(channel_uuid, true));
+		}
 	}
 	ON_MESSAGE(Protocol::SP_Closed, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Channel closed: channel_uuid = ", channel_uuid, ", err_code = ", msg.err_code, ", err_msg = ", msg.err_msg);
 
-		const AUTO(it, m_channels.find(channel_uuid));
-		if(it == m_channels.end()){
+		const AUTO(it, m_channels_established.find(channel_uuid));
+		if(it == m_channels_established.end()){
 			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, STD_MOVE_IDN(it->second));
-		m_channels.erase(it);
+		m_channels_established.erase(it);
 
-		channel->on_closed(msg.err_code, STD_MOVE(msg.err_msg));
+		try {
+			channel->on_sync_closed(msg.err_code, STD_MOVE(msg.err_msg));
+		} catch(std::exception &e){
+			LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+		}
 	}
 //=============================================================================
 #undef ON_MESSAGE
@@ -222,45 +190,84 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-void SecondaryClient::channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque){
+void SecondaryClient::attach_channel(const boost::shared_ptr<ChannelBase> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay){
 	PROFILE_ME;
+	DEBUG_THROW_ASSERT(!channel->get_channel_uuid());
+
+	const AUTO(shared_this, virtual_shared_from_this<SecondaryClient>());
+	const AUTO(channel_uuid, Poseidon::Uuid::random());
+	{
+		const Poseidon::Mutex::UniqueLock lock(m_establishment_mutex);
+		const AUTO(it, m_channels_pending.emplace(channel_uuid, channel));
+		channel->m_weak_parent = shared_this;
+		channel->m_channel_uuid = channel_uuid;
+		(void)it;
+	}
+	LOG_MEDUSA2_DEBUG("Channel inserted: channel = ", channel.get(), ", channel_uuid = ", channel_uuid, ", remote = ", get_remote_info());
 
 	Protocol::PS_Connect msg;
-	msg.channel_uuid = proxy_session->get_session_uuid();
+	msg.channel_uuid = channel_uuid;
 	msg.host         = STD_MOVE(host);
 	msg.port         = port;
 	msg.use_ssl      = use_ssl;
 	msg.no_delay     = no_delay;
-	msg.opaque       = STD_MOVE(opaque);
 	send(msg);
 }
-void SecondaryClient::channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment){
+
+SecondaryClient::ChannelBase::ChannelBase()
+	: m_weak_parent(), m_channel_uuid()
+{
+	LOG_MEDUSA2_DEBUG("SecondaryClient::ChannelBase constructor: this = ", this);
+}
+SecondaryClient::ChannelBase::~ChannelBase(){
+	LOG_MEDUSA2_DEBUG("SecondaryClient::ChannelBase destructor: this = ", this);
+}
+
+bool SecondaryClient::ChannelBase::send(Poseidon::StreamBuffer data){
 	PROFILE_ME;
+
+	const AUTO(parent, m_weak_parent.lock());
+	if(!parent){
+		return false;
+	}
 
 	Protocol::PS_Send msg;
-	msg.channel_uuid = session_uuid;
-	msg.segment      = STD_MOVE(segment);
-	send(msg);
+	msg.channel_uuid = m_channel_uuid;
+	for(;;){
+		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
+		msg.segment.resize(fragmentation_size);
+
+		msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
+		if(msg.segment.empty()){
+			break;
+		}
+		if(!parent->send(msg)){
+			LOG_MEDUSA2_WARNING("Failed to send data to ", parent->get_remote_info());
+			return false;
+		}
+	}
+	return true;
 }
-void SecondaryClient::channel_acknowledge(const Poseidon::Uuid &session_uuid, boost::uint64_t bytes_to_acknowledge){
+void SecondaryClient::ChannelBase::shutdown(bool no_linger) NOEXCEPT {
 	PROFILE_ME;
 
-	Protocol::PS_Acknowledge msg;
-	msg.channel_uuid         = session_uuid;
-	msg.bytes_to_acknowledge = bytes_to_acknowledge;
-	send(msg);
-}
-void SecondaryClient::channel_shutdown(const Poseidon::Uuid &session_uuid, bool no_linger) NOEXCEPT
-try {
-	PROFILE_ME;
+	const AUTO(parent, m_weak_parent.lock());
+	if(!parent){
+		return;
+	}
 
-	Protocol::PS_Shutdown msg;
-	msg.channel_uuid = session_uuid;
-	msg.no_linger    = no_linger;
-	send(msg);
-} catch(std::exception &e){
-	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
-	shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+	try {
+		Protocol::PS_Shutdown msg;
+		msg.channel_uuid = m_channel_uuid;
+		msg.no_linger    = no_linger;
+		if(!parent->send(msg)){
+			LOG_MEDUSA2_WARNING("Failed to send data to ", parent->get_remote_info());
+			return;
+		}
+	} catch(std::exception &e){
+		LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
+		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+	}
 }
 
 }

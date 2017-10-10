@@ -70,18 +70,13 @@ public:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		return m_established_after_all;
 	}
-	std::basic_string<unsigned char> cut_recv_queue(bool *no_more_data){
+	void cut_recv_queue(std::basic_string<unsigned char> &segment, bool &no_more_data){
 		const AUTO(fragmentation_size, get_config<std::size_t>("fetch_fragmentation_size", 8192));
-
-		std::basic_string<unsigned char> data;
-		data.resize(fragmentation_size);
+		segment.resize(fragmentation_size);
 
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		data.resize(m_recv_queue.get(&data[0], data.size()));
-		if(no_more_data){
-			*no_more_data = m_recv_queue.empty() && has_been_shutdown_read();
-		}
-		return data;
+		segment.resize(m_recv_queue.get(&segment[0], segment.size()));
+		no_more_data = m_recv_queue.empty() && has_been_shutdown_read();
 	}
 	int get_syserrno() const {
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
@@ -198,7 +193,7 @@ public:
 		if(!fetch_client){
 			if(m_shutdown_read){
 				m_err_code = Protocol::ERR_CONNECTION_ABORTED;
-				m_err_msg  = "Connection was aborted by the user";
+				m_err_msg  = "Connection was aborted before being initiated";
 				return true;
 			}
 
@@ -264,15 +259,16 @@ public:
 
 		// Read some data, if any.
 		bool no_more_data;
-		for(;;){
-			AUTO(segment, fetch_client->cut_recv_queue(&no_more_data));
-			if(segment.empty()){
-				break;
-			}
+		{
 			Protocol::SP_Received msg;
 			msg.channel_uuid = m_channel_uuid;
-			msg.segment      = STD_MOVE(segment);
-			parent->send(msg);
+			for(;;){
+				fetch_client->cut_recv_queue(msg.segment, no_more_data);
+				if(msg.segment.empty()){
+					break;
+				}
+				parent->send(msg);
+			}
 		}
 		if(!no_more_data){
 			LOG_MEDUSA2_TRACE("Waiting for more data: host:port = ", m_host, ":", m_port);

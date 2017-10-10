@@ -10,15 +10,18 @@
 namespace Medusa2 {
 namespace Primary {
 
-class ProxySession;
-
 class SecondaryClient : public Poseidon::Cbpp::Client {
 private:
-	class Channel;
 	class CloseJob;
 
+public:
+	class ChannelBase;
+
 private:
-	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<Channel> > m_channels;
+	mutable Poseidon::Mutex m_establishment_mutex;
+	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<ChannelBase> > m_channels_pending;
+
+	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<ChannelBase> > m_channels_established;
 
 public:
 	SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_ssl);
@@ -31,10 +34,32 @@ protected:
 	bool send(const Poseidon::Cbpp::MessageBase &msg);
 
 public:
-	void channel_connect(const boost::shared_ptr<ProxySession> &proxy_session, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque);
-	void channel_send(const Poseidon::Uuid &session_uuid, std::basic_string<unsigned char> segment);
-	void channel_acknowledge(const Poseidon::Uuid &session_uuid, boost::uint64_t bytes_to_acknowledge);
-	void channel_shutdown(const Poseidon::Uuid &session_uuid, bool no_linger) NOEXCEPT;
+	void attach_channel(const boost::shared_ptr<ChannelBase> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay);
+};
+
+class SecondaryClient::ChannelBase : NONCOPYABLE, public Poseidon::VirtualSharedFromThis {
+	friend SecondaryClient;
+
+private:
+	boost::weak_ptr<SecondaryClient> m_weak_parent;
+	Poseidon::Uuid m_channel_uuid;
+
+public:
+	ChannelBase();
+	~ChannelBase();
+
+public:
+	virtual void on_sync_established() = 0;
+	virtual void on_sync_received(Poseidon::StreamBuffer data) = 0;
+	virtual void on_sync_closed(long err_code, std::string err_msg) = 0;
+
+public:
+	const Poseidon::Uuid &get_channel_uuid() const {
+		return m_channel_uuid;
+	}
+
+	bool send(Poseidon::StreamBuffer data);
+	void shutdown(bool no_linger) NOEXCEPT;
 };
 
 }
