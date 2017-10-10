@@ -201,17 +201,26 @@ void SecondaryClient::attach_channel(const boost::shared_ptr<ChannelBase> &chann
 		const AUTO(it, m_channels_pending.emplace(channel_uuid, channel));
 		channel->m_weak_parent = shared_this;
 		channel->m_channel_uuid = channel_uuid;
-		(void)it;
+		try {
+			Protocol::PS_Connect msg;
+			msg.channel_uuid = channel_uuid;
+			msg.host         = STD_MOVE(host);
+			msg.port         = port;
+			msg.use_ssl      = use_ssl;
+			msg.no_delay     = no_delay;
+			if(!send(msg)){
+				LOG_MEDUSA2_WARNING("Connection to secondary server was lost: remote = ", get_remote_info());
+				DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Connection to secondary server was lost"));
+			}
+		} catch(std::exception &e){
+			LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			channel->m_weak_parent.reset();
+			channel->m_channel_uuid = VAL_INIT;
+			m_channels_pending.erase(it);
+			throw;
+		}
 	}
-	LOG_MEDUSA2_DEBUG("Channel inserted: channel = ", channel.get(), ", channel_uuid = ", channel_uuid, ", remote = ", get_remote_info());
-
-	Protocol::PS_Connect msg;
-	msg.channel_uuid = channel_uuid;
-	msg.host         = STD_MOVE(host);
-	msg.port         = port;
-	msg.use_ssl      = use_ssl;
-	msg.no_delay     = no_delay;
-	send(msg);
+	LOG_MEDUSA2_DEBUG("Channel attached: channel = ", channel.get(), ", channel_uuid = ", channel_uuid, ", remote = ", get_remote_info());
 }
 
 SecondaryClient::ChannelBase::ChannelBase()
@@ -242,7 +251,7 @@ bool SecondaryClient::ChannelBase::send(Poseidon::StreamBuffer data){
 			break;
 		}
 		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send data to ", parent->get_remote_info());
+			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
 			return false;
 		}
 	}
@@ -261,11 +270,11 @@ void SecondaryClient::ChannelBase::shutdown(bool no_linger) NOEXCEPT {
 		msg.channel_uuid = m_channel_uuid;
 		msg.no_linger    = no_linger;
 		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send data to ", parent->get_remote_info());
+			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
 			return;
 		}
 	} catch(std::exception &e){
-		LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
+		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
 		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
 	}
 }
