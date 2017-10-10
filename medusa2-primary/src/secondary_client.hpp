@@ -15,13 +15,13 @@ private:
 	class CloseJob;
 
 public:
-	class ChannelBase;
+	class AbstractChannel;
 
 private:
 	mutable Poseidon::Mutex m_establishment_mutex;
-	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<ChannelBase> > m_channels_pending;
+	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<AbstractChannel> > m_channels_pending;
 
-	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<ChannelBase> > m_channels_established;
+	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<AbstractChannel> > m_channels_established;
 
 public:
 	SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_ssl);
@@ -34,10 +34,10 @@ protected:
 	bool send(const Poseidon::Cbpp::MessageBase &msg);
 
 public:
-	void attach_channel(const boost::shared_ptr<ChannelBase> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay);
+	void attach_channel(const boost::shared_ptr<AbstractChannel> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay);
 };
 
-class SecondaryClient::ChannelBase : NONCOPYABLE, public Poseidon::VirtualSharedFromThis {
+class SecondaryClient::AbstractChannel : NONCOPYABLE, public Poseidon::VirtualSharedFromThis {
 	friend SecondaryClient;
 
 private:
@@ -45,8 +45,8 @@ private:
 	Poseidon::Uuid m_channel_uuid;
 
 public:
-	ChannelBase();
-	~ChannelBase();
+	AbstractChannel();
+	~AbstractChannel();
 
 public:
 	virtual void on_sync_established() = 0;

@@ -99,7 +99,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
-		boost::shared_ptr<ChannelBase> channel;
+		boost::shared_ptr<AbstractChannel> channel;
 		{
 			const Poseidon::Mutex::UniqueLock lock(m_establishment_mutex);
 			const AUTO(it, m_channels_pending.find(channel_uuid));
@@ -190,7 +190,7 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-void SecondaryClient::attach_channel(const boost::shared_ptr<ChannelBase> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay){
+void SecondaryClient::attach_channel(const boost::shared_ptr<AbstractChannel> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay){
 	PROFILE_ME;
 	DEBUG_THROW_ASSERT(!channel->get_channel_uuid());
 
@@ -223,16 +223,16 @@ void SecondaryClient::attach_channel(const boost::shared_ptr<ChannelBase> &chann
 	LOG_MEDUSA2_DEBUG("Channel attached: channel = ", channel.get(), ", channel_uuid = ", channel_uuid, ", remote = ", get_remote_info());
 }
 
-SecondaryClient::ChannelBase::ChannelBase()
+SecondaryClient::AbstractChannel::AbstractChannel()
 	: m_weak_parent(), m_channel_uuid()
 {
-	LOG_MEDUSA2_DEBUG("SecondaryClient::ChannelBase constructor: this = ", this);
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", this);
 }
-SecondaryClient::ChannelBase::~ChannelBase(){
-	LOG_MEDUSA2_DEBUG("SecondaryClient::ChannelBase destructor: this = ", this);
+SecondaryClient::AbstractChannel::~AbstractChannel(){
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", this);
 }
 
-bool SecondaryClient::ChannelBase::send(Poseidon::StreamBuffer data){
+bool SecondaryClient::AbstractChannel::send(Poseidon::StreamBuffer data){
 	PROFILE_ME;
 
 	const AUTO(parent, m_weak_parent.lock());
@@ -257,7 +257,7 @@ bool SecondaryClient::ChannelBase::send(Poseidon::StreamBuffer data){
 	}
 	return true;
 }
-void SecondaryClient::ChannelBase::shutdown(bool no_linger) NOEXCEPT {
+void SecondaryClient::AbstractChannel::shutdown(bool no_linger) NOEXCEPT {
 	PROFILE_ME;
 
 	const AUTO(parent, m_weak_parent.lock());

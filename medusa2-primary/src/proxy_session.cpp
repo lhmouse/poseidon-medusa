@@ -209,10 +209,10 @@ protected:
 	}
 };
 
-class ProxySession::Channel : public SecondaryClient::ChannelBase {
+class ProxySession::Channel : public SecondaryClient::AbstractChannel {
 public:
 	Channel()
-		: SecondaryClient::ChannelBase()
+		: SecondaryClient::AbstractChannel()
 	{ }
 
 protected:
