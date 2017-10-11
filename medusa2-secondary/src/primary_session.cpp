@@ -152,10 +152,10 @@ public:
 	}
 
 public:
-	void send(const void *data, std::size_t size){
+	void send(const std::basic_string<unsigned char> &segment){
 		PROFILE_ME;
 
-		m_send_queue.put(data, size);
+		m_send_queue.put(segment);
 	}
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
 		PROFILE_ME;
@@ -389,7 +389,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		}
 		const AUTO(channel, it->second);
 
-		channel->send(msg.segment.data(), msg.segment.size());
+		channel->send(msg.segment);
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
