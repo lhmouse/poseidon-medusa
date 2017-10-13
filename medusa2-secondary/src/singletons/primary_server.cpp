@@ -98,6 +98,7 @@ namespace {
 		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) const OVERRIDE {
 			AUTO(session, boost::make_shared<PrimarySession>(STD_MOVE(socket)));
 			session->set_no_delay();
+			PrimaryServer::insert_session(session);
 			return STD_MOVE_IDN(session);
 		}
 	};
