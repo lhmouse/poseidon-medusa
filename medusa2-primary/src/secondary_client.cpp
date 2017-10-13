@@ -63,10 +63,10 @@ private:
 SecondaryClient::AbstractChannel::AbstractChannel()
 	: m_weak_parent(), m_channel_uuid()
 {
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", this);
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", (void *)this);
 }
 SecondaryClient::AbstractChannel::~AbstractChannel(){
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", this);
+	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", (void *)this);
 }
 
 bool SecondaryClient::AbstractChannel::send(Poseidon::StreamBuffer data){

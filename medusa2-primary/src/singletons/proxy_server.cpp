@@ -80,7 +80,7 @@ bool ProxyServer::remove_session(volatile ProxySession *ptr) NOEXCEPT {
 	const Poseidon::Mutex::UniqueLock lock(g_session_map_mutex);
 	const AUTO(it, session_map->find<0>(ptr));
 	if(it == session_map->end<0>()){
-		LOG_MEDUSA2_DEBUG("ProxySession not found: ptr = ", ptr);
+		LOG_MEDUSA2_DEBUG("ProxySession not found: ptr = ", (void *)ptr);
 		return false;
 	}
 	session_map->erase<0>(it);
