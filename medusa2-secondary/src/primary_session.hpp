@@ -14,8 +14,6 @@ namespace Secondary {
 class PrimarySession : public Poseidon::Cbpp::Session {
 private:
 	class FetchClient;
-
-public:
 	class Channel;
 
 private:

@@ -1,6 +1,6 @@
 #include "precompiled.hpp"
 #include "secondary_client.hpp"
-#include "mmain.hpp"
+#include "secondary_channel.hpp"
 #include "common/encryption.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/error_codes.hpp"
@@ -60,62 +60,6 @@ private:
 	}
 };
 
-SecondaryClient::AbstractChannel::AbstractChannel()
-	: m_weak_parent(), m_channel_uuid()
-{
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel constructor: this = ", (void *)this);
-}
-SecondaryClient::AbstractChannel::~AbstractChannel(){
-	LOG_MEDUSA2_DEBUG("SecondaryClient::AbstractChannel destructor: this = ", (void *)this);
-}
-
-bool SecondaryClient::AbstractChannel::send(Poseidon::StreamBuffer data){
-	PROFILE_ME;
-
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
-		return false;
-	}
-
-	Protocol::PS_Send msg;
-	msg.channel_uuid = m_channel_uuid;
-	for(;;){
-		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
-		msg.segment.resize(fragmentation_size);
-
-		msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
-		if(msg.segment.empty()){
-			break;
-		}
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return false;
-		}
-	}
-	return true;
-}
-void SecondaryClient::AbstractChannel::shutdown(bool no_linger) NOEXCEPT {
-	PROFILE_ME;
-
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
-		return;
-	}
-
-	try {
-		Protocol::PS_Shutdown msg;
-		msg.channel_uuid = m_channel_uuid;
-		msg.no_linger    = no_linger;
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return;
-		}
-	} catch(std::exception &e){
-		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
-	}
-}
-
 SecondaryClient::SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_ssl)
 	: Poseidon::Cbpp::Client(sock_addr, use_ssl)
 {
@@ -155,7 +99,7 @@ void SecondaryClient::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
 		LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
-		boost::shared_ptr<AbstractChannel> channel;
+		boost::shared_ptr<SecondaryChannel> channel;
 		{
 			const Poseidon::Mutex::UniqueLock lock(m_establishment_mutex);
 			const AUTO(it, m_channels_pending.find(channel_uuid));
@@ -246,7 +190,7 @@ bool SecondaryClient::send(const Poseidon::Cbpp::MessageBase &msg){
 	return Poseidon::Cbpp::Client::send(msg.get_id(), STD_MOVE(ciphertext));
 }
 
-void SecondaryClient::attach_channel(const boost::shared_ptr<AbstractChannel> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay){
+void SecondaryClient::attach_channel(const boost::shared_ptr<SecondaryChannel> &channel, std::string host, unsigned port, bool use_ssl, bool no_delay){
 	PROFILE_ME;
 	DEBUG_THROW_ASSERT(!channel->get_channel_uuid());
 

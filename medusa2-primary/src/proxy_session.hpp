@@ -5,31 +5,33 @@
 #include <poseidon/tcp_session_base.hpp>
 #include <poseidon/uuid.hpp>
 #include <poseidon/http/fwd.hpp>
+#include <boost/container/deque.hpp>
 
 namespace Medusa2 {
 namespace Primary {
 
 class ProxySession : public Poseidon::TcpSessionBase {
 private:
+	class UpdateJob;
+	class PipelineElement;
 	class RequestRewriter;
 	class ResponseRewriter;
-
-	class RequestJobBase;
-	class DataReceivedJob;
-	class ReadHupJob;
-
 	class Channel;
 
 private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
 
-	boost::shared_ptr<RequestRewriter> m_request_rewriter;
-	boost::shared_ptr<ResponseRewriter> m_response_rewriter;
+	boost::container::deque<PipelineElement> m_pipeline;
+	boost::scoped_ptr<RequestRewriter> m_request_rewriter;
+	boost::scoped_ptr<ResponseRewriter> m_response_rewriter;
 
 public:
 	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info);
 	~ProxySession();
+
+private:
+	void on_sync_update(Poseidon::StreamBuffer segment, bool read_hup);
 
 protected:
 	void on_connect() OVERRIDE;

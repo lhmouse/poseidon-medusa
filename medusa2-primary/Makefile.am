@@ -14,6 +14,7 @@ lib_LTLIBRARIES = \
 	lib/libmedusa2-primary.la
 
 lib_libmedusa2_primary_la_SOURCES = \
+	src/secondary_channel.cpp	\
 	src/secondary_client.cpp	\
 	src/singletons/secondary_connector.cpp	\
 	src/proxy_session.cpp	\

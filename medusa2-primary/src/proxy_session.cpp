@@ -4,16 +4,56 @@
 #include "singletons/secondary_connector.hpp"
 #include <poseidon/job_base.hpp>
 #include <poseidon/singletons/job_dispatcher.hpp>
-#include <poseidon/http/status_codes.hpp>
-#include <poseidon/http/exception.hpp>
 #include <poseidon/http/server_reader.hpp>
 #include <poseidon/http/client_writer.hpp>
 #include <poseidon/http/client_reader.hpp>
 #include <poseidon/http/server_writer.hpp>
+#include <poseidon/http/status_codes.hpp>
+#include <poseidon/http/exception.hpp>
 
 namespace Medusa2 {
 namespace Primary {
 
+class ProxySession::UpdateJob : public Poseidon::JobBase {
+private:
+	const Poseidon::SocketBase::DelayedShutdownGuard m_guard;
+	const boost::weak_ptr<ProxySession> m_weak_session;
+
+	Poseidon::StreamBuffer m_data;
+	bool m_read_hup;
+
+public:
+	UpdateJob(const boost::shared_ptr<ProxySession> &session, Poseidon::StreamBuffer data, bool read_hup)
+		: m_guard(session), m_weak_session(session)
+		, m_data(STD_MOVE(data)), m_read_hup(read_hup)
+	{ }
+
+private:
+	boost::weak_ptr<const void> get_category() const FINAL {
+		return m_weak_session;
+	}
+	void perform() FINAL {
+		PROFILE_ME;
+
+		const AUTO(session, m_weak_session.lock());
+		if(!session || session->has_been_shutdown_write()){
+			return;
+		}
+
+		try {
+			session->on_sync_update(STD_MOVE(m_data), m_read_hup);
+		} catch(std::exception &e){
+			LOG_POSEIDON_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
+			session->force_shutdown();
+		}
+	}
+};
+
+class ProxySession::RequestRewriter { };
+class ProxySession::ResponseRewriter { };
+class ProxySession::PipelineElement { };
+
+#if 0
 enum {
 	OPTION_KEEP_ALIVE = 0,
 	OPTION_TUNNEL     = 1,
@@ -94,39 +134,6 @@ protected:
 	}
 };
 
-class ProxySession::RequestJobBase : public Poseidon::JobBase {
-private:
-	const Poseidon::SocketBase::DelayedShutdownGuard m_guard;
-	const boost::weak_ptr<ProxySession> m_weak_session;
-
-protected:
-	explicit RequestJobBase(const boost::shared_ptr<ProxySession> &session)
-		: m_guard(session), m_weak_session(session)
-	{ }
-
-private:
-	boost::weak_ptr<const void> get_category() const FINAL {
-		return m_weak_session;
-	}
-	void perform() FINAL {
-		PROFILE_ME;
-
-		const AUTO(session, m_weak_session.lock());
-		if(!session || session->has_been_shutdown_write()){
-			return;
-		}
-
-		try {
-			really_perform(session);
-		} catch(std::exception &e){
-			LOG_POSEIDON_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
-			session->force_shutdown();
-		}
-	}
-
-protected:
-	virtual void really_perform(const boost::shared_ptr<ProxySession> &session) = 0;
-};
 
 class ProxySession::DataReceivedJob : public ProxySession::RequestJobBase {
 private:
@@ -227,6 +234,8 @@ protected:
 	}
 };
 
+#endif
+
 ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info)
 	: Poseidon::TcpSessionBase(STD_MOVE(socket))
 	, m_session_uuid(Poseidon::Uuid::random()), m_auth_info(STD_MOVE(auth_info))
@@ -236,6 +245,13 @@ ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::s
 ProxySession::~ProxySession(){
 	LOG_MEDUSA2_INFO("ProxySession destructor: remote = ", get_remote_info());
 	ProxyServer::remove_session(this);
+}
+
+void ProxySession::on_sync_update(Poseidon::StreamBuffer segment, bool read_hup){
+	PROFILE_ME;
+	LOG_MEDUSA2_TRACE("Update ProxySession: remote = ", get_remote_info(), ", segment = ", segment, ", read_hup = ", read_hup);
+
+	//
 }
 
 void ProxySession::on_connect(){
@@ -249,7 +265,7 @@ void ProxySession::on_read_hup(){
 	LOG_MEDUSA2_DEBUG("ProxySession read hung up: remote = ", get_remote_info());
 
 	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<ReadHupJob>(virtual_shared_from_this<ProxySession>()),
+		boost::make_shared<UpdateJob>(virtual_shared_from_this<ProxySession>(), Poseidon::StreamBuffer(), true),
 		VAL_INIT);
 }
 void ProxySession::on_close(int err_code){
@@ -263,7 +279,7 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 	LOG_MEDUSA2_TRACE("ProxySession received data: remote = ", get_remote_info(), ", data.size() = ", data.size());
 
 	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<DataReceivedJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(data)),
+		boost::make_shared<UpdateJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(data), false),
 		VAL_INIT);
 }
 
