@@ -95,8 +95,8 @@ public:
 
 class PrimarySession::Channel : NONCOPYABLE {
 private:
-	const boost::weak_ptr<PrimarySession> m_weak_parent;
 	const Poseidon::Uuid m_channel_uuid;
+	const boost::weak_ptr<PrimarySession> m_weak_session;
 
 	const std::string m_host;
 	const unsigned m_port;
@@ -114,44 +114,47 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const boost::shared_ptr<PrimarySession> &parent, const Poseidon::Uuid &channel_uuid, std::string host, unsigned port, bool use_ssl, bool no_delay,
-		std::basic_string<unsigned char> opaque)
-		: m_weak_parent(parent), m_channel_uuid(channel_uuid), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
+	Channel(const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<PrimarySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay, std::basic_string<unsigned char> opaque)
+		: m_channel_uuid(channel_uuid), m_weak_session(session), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_err_code(Protocol::ERR_CONNECTION_ABORTED), m_err_msg()
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_fetch_client()
 	{
-		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", m_channel_uuid);
+		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 
 		Protocol::SP_Opened msg;
-		msg.channel_uuid = m_channel_uuid;
+		msg.channel_uuid = get_channel_uuid();
 		msg.opaque       = STD_MOVE(opaque);
-		parent->send(msg);
+		session->send(msg);
 	}
 	~Channel(){
-		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", m_channel_uuid);
+		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
 
 		const AUTO(fetch_client, m_fetch_client);
 		if(fetch_client){
-			LOG_MEDUSA2_WARNING("FetchClient was not shut down cleanly: channel_uuid = ", m_channel_uuid);
+			LOG_MEDUSA2_WARNING("FetchClient was not shut down cleanly: channel_uuid = ", get_channel_uuid());
 			fetch_client->force_shutdown();
 		}
 
-		const AUTO(parent, m_weak_parent.lock());
-		if(parent){
+		const AUTO(session, m_weak_session.lock());
+		if(session){
 			try {
 				Protocol::SP_Closed msg;
-				msg.channel_uuid = m_channel_uuid;
+				msg.channel_uuid = get_channel_uuid();
 				msg.err_code     = m_err_code;
 				msg.err_msg      = m_err_msg;
-				parent->send(msg);
+				session->send(msg);
 			} catch(std::exception &e){
 				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-				parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+				session->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
 			}
 		}
 	}
 
 public:
+	const Poseidon::Uuid &get_channel_uuid() const {
+		return m_channel_uuid;
+	}
+
 	void send(const std::basic_string<unsigned char> &segment){
 		PROFILE_ME;
 
@@ -184,8 +187,8 @@ public:
 	bool update(){
 		PROFILE_ME;
 
-		const AUTO(parent, m_weak_parent.lock());
-		if(!parent){
+		const AUTO(session, m_weak_session.lock());
+		if(!session){
 			return true;
 		}
 
@@ -251,8 +254,8 @@ public:
 		if(!m_establishment_notified){
 			if(fetch_client->was_established_after_all()){
 				Protocol::SP_Established msg;
-				msg.channel_uuid = m_channel_uuid;
-				parent->send(msg);
+				msg.channel_uuid = get_channel_uuid();
+				session->send(msg);
 			}
 			m_establishment_notified = true;
 		}
@@ -261,13 +264,13 @@ public:
 		bool no_more_data;
 		{
 			Protocol::SP_Received msg;
-			msg.channel_uuid = m_channel_uuid;
+			msg.channel_uuid = get_channel_uuid();
 			for(;;){
 				fetch_client->cut_recv_queue(msg.segment, no_more_data);
 				if(msg.segment.empty()){
 					break;
 				}
-				parent->send(msg);
+				session->send(msg);
 			}
 		}
 		if(!no_more_data){
@@ -373,7 +376,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 			m_timer = Poseidon::TimerDaemon::register_timer(0, 200, boost::bind(&sync_timer_proc, virtual_weak_from_this<PrimarySession>()));
 		}
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
-		const AUTO(channel, boost::make_shared<Channel>(virtual_shared_from_this<PrimarySession>(), channel_uuid, STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay, STD_MOVE(msg.opaque)));
+		const AUTO(channel, boost::make_shared<Channel>(channel_uuid, virtual_shared_from_this<PrimarySession>(), STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay, STD_MOVE(msg.opaque)));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
 		(void)it;
