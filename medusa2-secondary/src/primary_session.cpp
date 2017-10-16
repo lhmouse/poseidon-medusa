@@ -429,12 +429,43 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
 	}
 }
+void PrimarySession::on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param){
+	PROFILE_ME;
+	LOG_MEDUSA2_TRACE("Received control message: remote = ", get_remote_info(), ", status_code = ", status_code);
 
+	AUTO(plaintext, Common::decrypt(STD_MOVE(param)));
+	LOG_MEDUSA2_TRACE("> status_code = ", status_code, ", plaintext = ", plaintext);
+	Poseidon::Cbpp::Session::on_sync_control_message(status_code, STD_MOVE(plaintext));
+}
+
+bool PrimarySession::send(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
+	PROFILE_ME;
+
+	AUTO(ciphertext, Common::encrypt(STD_MOVE(payload)));
+	return Poseidon::Cbpp::Session::send(message_id, STD_MOVE(ciphertext));
+}
 bool PrimarySession::send(const Poseidon::Cbpp::MessageBase &msg){
 	PROFILE_ME;
 
-	AUTO(ciphertext, Common::encrypt(msg));
-	return Poseidon::Cbpp::Session::send(msg.get_id(), STD_MOVE(ciphertext));
+	return send(msg.get_id(), Poseidon::StreamBuffer(msg));
+}
+bool PrimarySession::send_status(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param){
+	PROFILE_ME;
+
+	AUTO(ciphertext, Common::encrypt(STD_MOVE(param)));
+	return Poseidon::Cbpp::Session::send_status(status_code, STD_MOVE(ciphertext));
+}
+bool PrimarySession::shutdown(Poseidon::Cbpp::StatusCode status_code, const char *param) NOEXCEPT
+try {
+	PROFILE_ME;
+
+	send_status(status_code, Poseidon::StreamBuffer(param));
+	shutdown_read();
+	return shutdown_write();
+} catch(std::exception &e){
+	LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+	force_shutdown();
+	return false;
 }
 
 }
