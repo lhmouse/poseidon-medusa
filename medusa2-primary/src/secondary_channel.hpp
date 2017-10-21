@@ -40,7 +40,7 @@ public:
 	unsigned get_port() const {
 		return m_port;
 	}
-	bool does_use_ssl() const {
+	bool is_using_ssl() const {
 		return m_use_ssl;
 	}
 	bool is_no_delay() const {

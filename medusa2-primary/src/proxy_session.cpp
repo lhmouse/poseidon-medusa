@@ -16,7 +16,7 @@
 
 namespace Medusa2 {
 namespace Primary {
-#if 0
+
 class ProxySession::PipelineElement : NONCOPYABLE {
 public:
 	struct EndOfStream {
@@ -70,8 +70,9 @@ private:
 	boost::weak_ptr<ProxySession> m_weak_session;
 
 public:
-	explicit Channel(const boost::shared_ptr<ProxySession> &session)
-		: m_weak_session(session)
+	Channel(const boost::shared_ptr<ProxySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay)
+		: SecondaryChannel(STD_MOVE(host), port, use_ssl, no_delay)
+		, m_weak_session(session)
 	{ }
 	~Channel(){
 		const AUTO(session, m_weak_session.lock());
@@ -93,6 +94,7 @@ protected:
 	}
 	void on_sync_closed(long err_code, std::string err_msg) OVERRIDE {
 		LOG_POSEIDON_FATAL("CLOSED: ", err_code, ": ", err_msg);
+		m_weak_session.reset();
 	}
 };
 
@@ -111,7 +113,7 @@ public:
 		PROFILE_ME;
 
 		const AUTO(session, m_session->virtual_shared_from_this<ProxySession>());
-
+/*
 		AUTO_REF(verb, request_headers.verb);
 		AUTO_REF(uri, request_headers.uri);
 		AUTO_REF(headers, request_headers.headers);
@@ -249,7 +251,7 @@ public:
 			PipelineElement::Error elem = { Poseidon::Http::ST_BAD_GATEWAY, VAL_INIT, e.what() };
 			session->m_pipeline.emplace_back(STD_MOVE(elem));
 		}
-		session->update();
+*/		session->update();
 	}
 	void on_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
 		PROFILE_ME;
@@ -331,7 +333,10 @@ private:
 			return;
 		}
 
-		try {
+		const AUTO(channel, boost::make_shared<Channel>(session, "www.baidu.com", 443, true, true));
+		SecondaryConnector::attach_channel(channel);
+		channel->send(Poseidon::StreamBuffer("GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: Close\r\nUser-Agent: test program\r\n\r\n"));
+/*		try {
 			if(!m_data.empty()){
 				AUTO_REF(rewriter, session->m_request_rewriter);
 				if(!rewriter){
@@ -348,13 +353,12 @@ private:
 			LOG_POSEIDON_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
 			session->force_shutdown();
 		}
-	}
+*/	}
 };
 
 ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info)
 	: Poseidon::TcpSessionBase(STD_MOVE(socket))
 	, m_session_uuid(Poseidon::Uuid::random()), m_auth_info(STD_MOVE(auth_info))
-	, m_weak_secondary_client(SecondaryConnector::get_client())
 {
 	LOG_MEDUSA2_INFO("ProxySession constructor: remote = ", get_remote_info());
 }
@@ -397,6 +401,6 @@ void ProxySession::on_receive(Poseidon::StreamBuffer data){
 		boost::make_shared<UpdateJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(data), false),
 		VAL_INIT);
 }
-#endif
+
 }
 }

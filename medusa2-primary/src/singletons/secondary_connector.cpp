@@ -14,25 +14,7 @@ namespace Primary {
 
 namespace {
 	boost::container::flat_map<Poseidon::Uuid, boost::shared_ptr<SecondaryChannel> > g_channels;
-}
 
-boost::shared_ptr<SecondaryChannel> SecondaryConnector::get_attached_channel(const Poseidon::Uuid &channel_uuid){
-	PROFILE_ME;
-
-	const AUTO(it, g_channels.find(channel_uuid));
-	if(it == g_channels.end()){
-		return VAL_INIT;
-	}
-	return it->second;
-}
-void SecondaryConnector::attach_channel(const boost::shared_ptr<SecondaryChannel> &channel){
-	PROFILE_ME;
-
-	const AUTO(pair, g_channels.emplace(channel->get_channel_uuid(), channel));
-	DEBUG_THROW_ASSERT(pair.second);
-}
-
-namespace {
 	class SecondaryClient : public Poseidon::Cbpp::Client {
 	public:
 		SecondaryClient(const Poseidon::SockAddr &sock_addr, bool use_ssl)
@@ -131,6 +113,12 @@ namespace {
 			AUTO(ciphertext, Common::encrypt(STD_MOVE(payload)));
 			return Poseidon::Cbpp::Client::send(message_id, STD_MOVE(ciphertext));
 		}
+
+		bool send(const Poseidon::Cbpp::MessageBase &msg){
+			PROFILE_ME;
+
+			return send(msg.get_id(), Poseidon::StreamBuffer(msg));
+		}
 	};
 
 	boost::weak_ptr<SecondaryClient> g_weak_client;
@@ -180,6 +168,36 @@ namespace {
 	}
 }
 
+boost::shared_ptr<SecondaryChannel> SecondaryConnector::get_attached_channel(const Poseidon::Uuid &channel_uuid){
+	PROFILE_ME;
+
+	const AUTO(it, g_channels.find(channel_uuid));
+	if(it == g_channels.end()){
+		return VAL_INIT;
+	}
+	return it->second;
+}
+void SecondaryConnector::attach_channel(const boost::shared_ptr<SecondaryChannel> &channel){
+	PROFILE_ME;
+
+	const AUTO(client, g_weak_client.lock());
+	if(!client){
+		LOG_MEDUSA2_WARNING("Connection to secondary server is not ready.");
+		DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Connection to secondary server is not ready"));
+	}
+
+	const AUTO(pair, g_channels.emplace(channel->get_channel_uuid(), channel));
+	DEBUG_THROW_ASSERT(pair.second);
+
+	Protocol::PS_Connect msg;
+	msg.channel_uuid = channel->get_channel_uuid();
+	msg.host         = channel->get_host();
+	msg.port         = channel->get_port();
+	msg.use_ssl      = channel->is_using_ssl();
+	msg.no_delay     = channel->is_no_delay();
+	client->send(msg);
+}
+
 const Poseidon::IpPort &SecondaryConnector::get_remote_info(){
 	PROFILE_ME;
 
@@ -196,7 +214,7 @@ bool SecondaryConnector::send(const Poseidon::Cbpp::MessageBase &msg){
 	if(!client){
 		return false;
 	}
-	return client->send(msg.get_id(), Poseidon::StreamBuffer(msg));
+	return client->send(msg);
 }
 bool SecondaryConnector::shutdown(long err_code, const char *what) NOEXCEPT {
 	PROFILE_ME;
