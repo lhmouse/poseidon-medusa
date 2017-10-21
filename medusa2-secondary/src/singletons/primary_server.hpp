@@ -8,9 +8,7 @@ namespace Secondary {
 
 class PrimaryServer {
 public:
-	static boost::shared_ptr<PrimarySession> get_session(const Poseidon::Uuid &session_uuid);
-	static void insert_session(const boost::shared_ptr<PrimarySession> &session);
-	static bool remove_session(volatile PrimarySession *ptr) NOEXCEPT;
+	//
 
 private:
 	PrimaryServer();

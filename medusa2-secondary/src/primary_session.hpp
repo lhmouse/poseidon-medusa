@@ -31,17 +31,15 @@ public:
 protected:
 	void on_sync_timer();
 	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
-	void on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param) OVERRIDE;
-
-	bool send(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
-	bool send(const Poseidon::Cbpp::MessageBase &msg);
-	bool send_status(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param) OVERRIDE;
-	bool shutdown(Poseidon::Cbpp::StatusCode status_code, const char *param) NOEXCEPT OVERRIDE;
 
 public:
 	const Poseidon::Uuid &get_session_uuid() const NOEXCEPT {
 		return m_session_uuid;
 	}
+
+	bool send(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
+
+	bool send(const Poseidon::Cbpp::MessageBase &msg);
 };
 
 }

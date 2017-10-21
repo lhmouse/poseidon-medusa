@@ -1,6 +1,6 @@
 #include "precompiled.hpp"
 #include "secondary_channel.hpp"
-#include "secondary_client.hpp"
+#include "singletons/secondary_connector.hpp"
 #include "mmain.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/error_codes.hpp"
@@ -8,67 +8,64 @@
 namespace Medusa2 {
 namespace Primary {
 
-SecondaryChannel::SecondaryChannel()
-	: m_weak_parent(), m_channel_uuid()
+SecondaryChannel::SecondaryChannel(std::string host, unsigned port, bool use_ssl, bool no_delay)
+	: m_channel_uuid(Poseidon::Uuid::random())
+	, m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
+	, m_shutdown(false)
 {
-	LOG_MEDUSA2_DEBUG("SecondaryChannel constructor: this = ", (void *)this);
+	LOG_MEDUSA2_DEBUG("SecondaryChannel constructor: channel_uuid = ", get_channel_uuid());
 }
 SecondaryChannel::~SecondaryChannel(){
-	LOG_MEDUSA2_DEBUG("SecondaryChannel destructor: this = ", (void *)this);
+	LOG_MEDUSA2_DEBUG("SecondaryChannel destructor: channel_uuid = ", get_channel_uuid());
 }
 
-void SecondaryChannel::activate(const boost::shared_ptr<SecondaryClient> &parent, const Poseidon::Uuid &channel_uuid){
-	DEBUG_THROW_ASSERT(!m_channel_uuid);
+bool SecondaryChannel::has_been_shutdown() const NOEXCEPT {
+	return Poseidon::atomic_load(m_shutdown, Poseidon::ATOMIC_ACQUIRE);
+}
+bool SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
+	PROFILE_ME;
 
-	m_weak_parent  = parent;
-	m_channel_uuid = channel_uuid;
+	bool was_shutdown = Poseidon::atomic_load(m_shutdown, Poseidon::ATOMIC_ACQUIRE);
+	if(!was_shutdown){
+		was_shutdown = Poseidon::atomic_exchange(m_shutdown, true, Poseidon::ATOMIC_ACQ_REL);
+	}
+	if(was_shutdown){
+		return false;
+	}
+	try {
+		Protocol::PS_Shutdown msg;
+		msg.channel_uuid = get_channel_uuid();
+		msg.no_linger    = no_linger;
+		SecondaryConnector::send(msg);
+	} catch(std::exception &e){
+		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+		SecondaryConnector::shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		return false;
+	}
+	return true;
 }
 
 bool SecondaryChannel::send(Poseidon::StreamBuffer data){
 	PROFILE_ME;
 
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
+	if(has_been_shutdown()){
+		LOG_MEDUSA2_DEBUG("Channel is gone: channel_uuid = ", get_channel_uuid());
 		return false;
 	}
-
-	Protocol::PS_Send msg;
-	msg.channel_uuid = m_channel_uuid;
-	for(;;){
-		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
-		msg.segment.resize(fragmentation_size);
-
-		msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
-		if(msg.segment.empty()){
-			break;
-		}
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return false;
-		}
-	}
-	return true;
-}
-void SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
-	PROFILE_ME;
-
-	const AUTO(parent, m_weak_parent.lock());
-	if(!parent){
-		return;
-	}
-
 	try {
-		Protocol::PS_Shutdown msg;
-		msg.channel_uuid = m_channel_uuid;
-		msg.no_linger    = no_linger;
-		if(!parent->send(msg)){
-			LOG_MEDUSA2_WARNING("Failed to send message to ", parent->get_remote_info());
-			return;
-		}
+		Protocol::PS_Send msg;
+		msg.channel_uuid = get_channel_uuid();
+		do {
+			const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
+			msg.segment.resize(fragmentation_size);
+			msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
+		} while(!msg.segment.empty() && SecondaryConnector::send(msg));
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		parent->shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		SecondaryConnector::shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		return false;
 	}
+	return true;
 }
 
 }

@@ -10,17 +10,21 @@
 namespace Medusa2 {
 namespace Primary {
 
+class SecondaryClient;
+
 class ProxySession : public Poseidon::TcpSessionBase {
 private:
-	class UpdateJob;
 	class PipelineElement;
+	class Channel;
+
 	class RequestRewriter;
 	class ResponseRewriter;
-	class Channel;
+	class UpdateJob;
 
 private:
 	const Poseidon::Uuid m_session_uuid;
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
+	const boost::weak_ptr<SecondaryClient> m_weak_secondary_client;
 
 	boost::container::deque<PipelineElement> m_pipeline;
 	boost::scoped_ptr<RequestRewriter> m_request_rewriter;
@@ -31,7 +35,7 @@ public:
 	~ProxySession();
 
 private:
-	void on_sync_update(Poseidon::StreamBuffer segment, bool read_hup);
+	void update();
 
 protected:
 	void on_connect() OVERRIDE;
