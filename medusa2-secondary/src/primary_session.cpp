@@ -20,13 +20,12 @@ private:
 	bool m_established_after_all;
 	Poseidon::StreamBuffer m_recv_queue;
 	boost::uint64_t m_queue_size;
-	bool m_syserrno_accepted;
 	int m_syserrno;
 
 public:
 	FetchClient(const Poseidon::SockAddr &addr, bool use_ssl)
 		: Poseidon::TcpClientBase(addr, use_ssl, true)
-		, m_connected_or_closed(false), m_established_after_all(false), m_recv_queue(), m_queue_size(0), m_syserrno_accepted(false), m_syserrno(ENOTCONN)
+		, m_connected_or_closed(false), m_established_after_all(false), m_recv_queue(), m_queue_size(0), m_syserrno(-1)
 	{ }
 
 protected:
@@ -36,7 +35,6 @@ protected:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		m_connected_or_closed = true;
 		m_established_after_all = true;
-		m_syserrno = EPIPE;
 	}
 	void on_read_hup() OVERRIDE {
 		LOG_MEDUSA2_TRACE("Connection read hang up: remote = ", get_remote_info());
@@ -45,9 +43,8 @@ protected:
 	}
 	void on_close(int err_code) OVERRIDE {
 		LOG_MEDUSA2_TRACE("Connection closed: remote = ", get_remote_info(), ", err_code = ", err_code);
-		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 
-		m_syserrno_accepted = true;
+		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		m_connected_or_closed = true;
 		m_syserrno = err_code;
 	}
@@ -77,7 +74,7 @@ public:
 
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		segment.resize(m_recv_queue.get(&segment[0], segment.size()));
-		no_more_data = m_recv_queue.empty() && m_syserrno_accepted;
+		no_more_data = m_recv_queue.empty() && (m_syserrno >= 0);
 	}
 	int get_syserrno() const {
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
@@ -198,6 +195,7 @@ public:
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
 
 			// Create the TCP client.
+			DEBUG_THROW_ASSERT(!m_establishment_notified);
 			fetch_client = boost::make_shared<FetchClient>(sock_addr, m_use_ssl);
 			if(m_no_delay){
 				fetch_client->set_no_delay();
@@ -245,6 +243,7 @@ public:
 			m_shutdown_read = true;
 			m_shutdown_write = true;
 			fetch_client->shutdown_write();
+			m_fetch_client.reset();
 
 			const int syserrno = fetch_client->get_syserrno();
 			switch(syserrno){
@@ -259,7 +258,6 @@ public:
 			default:
 				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_LOST_UNSPECIFIED, Poseidon::get_error_desc(syserrno));
 			}
-			m_fetch_client.reset();
 		}
 
 		return no_more_data;
@@ -295,7 +293,6 @@ try {
 	for(AUTO(it, m_channels.begin()); it != m_channels.end(); no_more_data ? (it = m_channels.erase(it)) : ++it){
 		const AUTO(channel_uuid, it->first);
 		const AUTO(channel, it->second);
-
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
 		try {
 			no_more_data = channel->update();
