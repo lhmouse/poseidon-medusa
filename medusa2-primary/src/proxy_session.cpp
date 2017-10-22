@@ -151,14 +151,23 @@ protected:
 		if(session->m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
-			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
+			if(err_code == 0){
+				tunnel_session->shutdown_read();
+				tunnel_session->shutdown_write();
+			} else {
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
+			}
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
 			if(is_content_till_eof()){
 				terminate_content();
 			}
-			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_EMPTY_RESPONSE, "The origin server sent no data");
+			if(err_code == 0){
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_EMPTY_RESPONSE, "The origin server sent no data");
+			} else {
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
+			}
 		}
 	}
 
