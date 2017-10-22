@@ -267,134 +267,139 @@ public:
 	{ }
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL
-	try {
+	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
 		AUTO_REF(verb, m_request_headers.verb);
 		AUTO_REF(uri, m_request_headers.uri);
 		AUTO_REF(headers, m_request_headers.headers);
 
-		if(uri.at(0) == '/'){
-			// TODO: This could be useful.
-			LOG_MEDUSA2_INFO("Relative URI not handled: remote = ", session->get_remote_info(), ", uri = ", uri);
-			DEBUG_THROW(Poseidon::Http::Exception, Poseidon::Http::ST_FORBIDDEN);
-		}
+		// XXX: If an exception is thrown, make sure its destructor does not shut the session down violently.
+		//      This `shared_ptr` ensures that its destructor is run after any `catch` block.
+		boost::shared_ptr<Channel> channel;
 
-		LOG_MEDUSA2_INFO("New fetch request from ", session->get_remote_info());
-		LOG_MEDUSA2_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
-		LOG_MEDUSA2_DEBUG(">> Request headers: ", headers);
-		LOG_MEDUSA2_INFO(">> Proxy-Authorization: ", headers.get("Proxy-Authorization"));
-		LOG_MEDUSA2_INFO(">> User-Agent: ", headers.get("User-Agent"));
+		try {
+			if(uri.at(0) == '/'){
+				// TODO: This could be useful.
+				LOG_MEDUSA2_INFO("Relative URI not handled: remote = ", session->get_remote_info(), ", uri = ", uri);
+				DEBUG_THROW(Poseidon::Http::Exception, Poseidon::Http::ST_FORBIDDEN);
+			}
 
-		if(session->m_auth_info){
-			Poseidon::Http::check_and_throw_if_unauthorized(session->m_auth_info, session->get_remote_info(), m_request_headers, true);
-		}
+			LOG_MEDUSA2_INFO("New fetch request from ", session->get_remote_info());
+			LOG_MEDUSA2_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
+			LOG_MEDUSA2_DEBUG(">> Request headers: ", headers);
+			LOG_MEDUSA2_INFO(">> Proxy-Authorization: ", headers.get("Proxy-Authorization"));
+			LOG_MEDUSA2_INFO(">> User-Agent: ", headers.get("User-Agent"));
 
-		std::string host;
-		unsigned port = 80;
-		bool use_ssl = false;
-		bool no_delay = false;
+			if(session->m_auth_info){
+				Poseidon::Http::check_and_throw_if_unauthorized(session->m_auth_info, session->get_remote_info(), m_request_headers, true);
+			}
 
-		// uri = "http://www.example.com:80/foo/bar/page.html?param=value"
-		AUTO(pos, uri.find("://"));
-		if(pos != std::string::npos){
-			uri.at(pos) = 0;
-			LOG_MEDUSA2_TRACE("Request protocol = ", uri.c_str());
-			if(::strcasecmp(uri.c_str(), "http") == 0){
-				port = 80;
-				use_ssl = false;
-			} else if(::strcasecmp(uri.c_str(), "https") == 0){
-				port = 443;
-				use_ssl = true;
+			std::string host;
+			unsigned port = 80;
+			bool use_ssl = false;
+			bool no_delay = false;
+
+			// uri = "http://www.example.com:80/foo/bar/page.html?param=value"
+			AUTO(pos, uri.find("://"));
+			if(pos != std::string::npos){
+				uri.at(pos) = 0;
+				LOG_MEDUSA2_TRACE("Request protocol = ", uri.c_str());
+				if(::strcasecmp(uri.c_str(), "http") == 0){
+					port = 80;
+					use_ssl = false;
+				} else if(::strcasecmp(uri.c_str(), "https") == 0){
+					port = 443;
+					use_ssl = true;
+				} else {
+					LOG_MEDUSA2_WARNING("Unsupported protocol: ", uri.c_str(), ", remote = ", session->get_remote_info());
+					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Unsupported protocol"));
+				}
+				uri.erase(0, pos + 3);
+			}
+			// uri = "www.example.com:80/foo/bar/page.html?param=value"
+			pos = uri.find('/');
+			if(pos != std::string::npos){
+				host = uri.substr(0, pos);
+				uri.erase(0, pos);
 			} else {
-				LOG_MEDUSA2_WARNING("Unsupported protocol: ", uri.c_str(), ", remote = ", session->get_remote_info());
-				DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Unsupported protocol"));
+				host = STD_MOVE(uri);
+				uri = "/";
 			}
-			uri.erase(0, pos + 3);
-		}
-		// uri = "www.example.com:80/foo/bar/page.html?param=value"
-		pos = uri.find('/');
-		if(pos != std::string::npos){
-			host = uri.substr(0, pos);
-			uri.erase(0, pos);
-		} else {
-			host = STD_MOVE(uri);
-			uri = "/";
-		}
-		// host = "www.example.com:80"
-		// uri = "/foo/bar/page.html?param=value"
-		if(host[0] == '['){
-			pos = host.find(']');
-			if(pos == std::string::npos){
-				LOG_MEDUSA2_WARNING("Invalid IPv6 address: host = ", host);
-				DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid IPv6 address"));
-			}
-			pos = host.find(':', pos + 1);
-		} else {
-			pos = host.find(':');
-		}
-		if(pos != std::string::npos){
-			char *endptr;
-			const AUTO(port_val, std::strtoul(host.c_str() + pos + 1, &endptr, 10));
-			if(*endptr){
-				LOG_MEDUSA2_WARNING("Invalid port string: host = ", host, ", remote = ", session->get_remote_info());
-				DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port string"));
-			}
-			if((port_val == 0) || (port_val >= 65535)){
-				LOG_MEDUSA2_WARNING("Invalid port number: host = ", host, ", remote = ", session->get_remote_info());
-				DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port number"));
-			}
-			port = port_val;
-			host.erase(pos);
-		}
-		// host = "www.example.com"
-		// port = 80
-		// uri = "/foo/bar/page.html?param=value"
-		if(m_tunnel){
-			no_delay = true;
-		} else {
-			headers.erase("Prxoy-Authenticate");
-			headers.erase("Proxy-Connection");
-
-			headers.set(Poseidon::sslit("Connection"), "Close");
-			headers.set(Poseidon::sslit("X-Forwarded-Host"), host);
-
-			AUTO(x_forwarded_for, headers.get("X-Forwarded-For"));
-			if(!x_forwarded_for.empty()){
-				x_forwarded_for += ", ";
-			}
-			x_forwarded_for += session->get_remote_info().ip();
-			headers.set(Poseidon::sslit("X-Forwarded-For"), STD_MOVE(x_forwarded_for));
-		}
-
-		const AUTO(channel, boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay));
-		SecondaryConnector::attach_channel(channel);
-		session->m_weak_channel = channel;
-
-		if(m_tunnel){
-			// Do nothing.
-		} else {
-			Poseidon::Http::RequestHeaders rewritten_headers;
-			rewritten_headers.verb    = verb;
-			rewritten_headers.uri     = STD_MOVE(uri);
-			rewritten_headers.version = 10001;
-			rewritten_headers.headers = STD_MOVE(headers);
-			if(!m_chunked){
-				channel->put_request(STD_MOVE(rewritten_headers), VAL_INIT, false);
+			// host = "www.example.com:80"
+			// uri = "/foo/bar/page.html?param=value"
+			if(host[0] == '['){
+				pos = host.find(']');
+				if(pos == std::string::npos){
+					LOG_MEDUSA2_WARNING("Invalid IPv6 address: host = ", host);
+					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid IPv6 address"));
+				}
+				pos = host.find(':', pos + 1);
 			} else {
-				channel->put_chunked_header(STD_MOVE(rewritten_headers));
+				pos = host.find(':');
 			}
-		}
+			if(pos != std::string::npos){
+				char *endptr;
+				const AUTO(port_val, std::strtoul(host.c_str() + pos + 1, &endptr, 10));
+				if(*endptr){
+					LOG_MEDUSA2_WARNING("Invalid port string: host = ", host, ", remote = ", session->get_remote_info());
+					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port string"));
+				}
+				if((port_val == 0) || (port_val >= 65535)){
+					LOG_MEDUSA2_WARNING("Invalid port number: host = ", host, ", remote = ", session->get_remote_info());
+					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port number"));
+				}
+				port = port_val;
+				host.erase(pos);
+			}
+			// host = "www.example.com"
+			// port = 80
+			// uri = "/foo/bar/page.html?param=value"
+			if(m_tunnel){
+				no_delay = true;
+			} else {
+				headers.erase("Prxoy-Authenticate");
+				headers.erase("Proxy-Connection");
 
-		const AUTO(timeout, get_config<boost::uint64_t>("proxy_session_timeout", 300000));
-		session->set_timeout(timeout);
-	} catch(Poseidon::Http::Exception &e){
-		LOG_MEDUSA2_WARNING("Http::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
-		session->sync_pretty_shutdown(e.get_status_code(), Protocol::ERR_CONNECTION_CANCELLED, e.what(), e.get_headers());
-	} catch(std::exception &e){
-		LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
-		session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
+				headers.set(Poseidon::sslit("Connection"), "Close");
+				headers.set(Poseidon::sslit("X-Forwarded-Host"), host);
+
+				AUTO(x_forwarded_for, headers.get("X-Forwarded-For"));
+				if(!x_forwarded_for.empty()){
+					x_forwarded_for += ", ";
+				}
+				x_forwarded_for += session->get_remote_info().ip();
+				headers.set(Poseidon::sslit("X-Forwarded-For"), STD_MOVE(x_forwarded_for));
+			}
+
+			channel = boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay);
+			SecondaryConnector::attach_channel(channel);
+			session->m_weak_channel = channel;
+
+			if(m_tunnel){
+				// Do nothing.
+			} else {
+				Poseidon::Http::RequestHeaders rewritten_headers;
+				rewritten_headers.verb    = verb;
+				rewritten_headers.uri     = STD_MOVE(uri);
+				rewritten_headers.version = 10001;
+				rewritten_headers.headers = STD_MOVE(headers);
+				if(!m_chunked){
+					channel->put_request(STD_MOVE(rewritten_headers), VAL_INIT, false);
+				} else {
+					channel->put_chunked_header(STD_MOVE(rewritten_headers));
+				}
+			}
+
+			const AUTO(timeout, get_config<boost::uint64_t>("proxy_session_timeout", 300000));
+			session->set_timeout(timeout);
+		} catch(Poseidon::Http::Exception &e){
+			LOG_MEDUSA2_WARNING("Http::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
+			session->sync_pretty_shutdown(e.get_status_code(), Protocol::ERR_CONNECTION_CANCELLED, e.what(), e.get_headers());
+		} catch(std::exception &e){
+			LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
+			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
+		}
 	}
 };
 
