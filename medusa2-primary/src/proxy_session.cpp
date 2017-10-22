@@ -155,6 +155,9 @@ protected:
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
+			if(is_content_till_eof()){
+				terminate_content();
+			}
 			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_EMPTY_RESPONSE, "The origin server sent no data");
 		}
 	}
