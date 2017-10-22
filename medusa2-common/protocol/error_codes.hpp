@@ -24,6 +24,8 @@ namespace ErrorCodes {
 		ERR_CONNECTION_RESET_BY_PEER          = 9006,
 		ERR_CONNECTION_CANCELLED              = 9007,
 		ERR_SECONDARY_SERVER_CONNECTION_LOST  = 9008,
+		ERR_ORIGIN_INVALID_HTTP_RESPONSE      = 9009,
+		ERR_ORIGIN_EMPTY_RESPONSE             = 9010,
 	};
 }
 using namespace ErrorCodes;

@@ -49,6 +49,7 @@ public:
 
 	bool has_been_shutdown() const NOEXCEPT;
 	bool shutdown(bool no_linger) NOEXCEPT;
+	void force_shutdown();
 
 	bool send(Poseidon::StreamBuffer data);
 };
