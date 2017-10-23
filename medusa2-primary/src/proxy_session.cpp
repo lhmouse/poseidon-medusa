@@ -184,7 +184,7 @@ protected:
 	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t content_length) OVERRIDE {
 		PROFILE_ME;
 
-		m_chunked = (response_headers.status_code / 100 >= 2) && (content_length == Poseidon::Http::ClientReader::CONTENT_CHUNKED);
+		m_chunked = response_headers.status_code / 100 >= 2;
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
