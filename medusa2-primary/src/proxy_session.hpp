@@ -24,8 +24,8 @@ private:
 	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
 
 	// low level
-	bool m_chunked;
 	bool m_tunnel;
+	bool m_chunked;
 
 	// sync
 	boost::weak_ptr<Channel> m_weak_channel;

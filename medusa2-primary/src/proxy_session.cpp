@@ -66,11 +66,13 @@ protected:
 class ProxySession::Channel : public SecondaryChannel, public Poseidon::Http::ClientWriter, public Poseidon::Http::ClientReader {
 private:
 	boost::weak_ptr<ProxySession> m_weak_session;
+	bool m_tunnel;
+	bool m_chunked;
 
 public:
-	Channel(const boost::shared_ptr<ProxySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay)
+	Channel(const boost::shared_ptr<ProxySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay, bool tunnel)
 		: SecondaryChannel(STD_MOVE(host), port, use_ssl, no_delay)
-		, m_weak_session(session)
+		, m_weak_session(session), m_tunnel(tunnel), m_chunked(false)
 	{ }
 	~Channel(){
 		const AUTO(session, m_weak_session.lock());
@@ -105,7 +107,7 @@ protected:
 		if(!session){
 			return;
 		}
-		if(session->m_tunnel){
+		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
 			Poseidon::Http::ResponseHeaders response_headers;
@@ -126,7 +128,7 @@ protected:
 		if(!session){
 			return;
 		}
-		if(session->m_tunnel){
+		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
 			tunnel_session->send(STD_MOVE(data));
@@ -148,7 +150,7 @@ protected:
 		if(!session){
 			return;
 		}
-		if(session->m_tunnel){
+		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
 			if(err_code == 0){
@@ -179,8 +181,10 @@ protected:
 	}
 
 	// ClientReader
-	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
+	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t content_length) OVERRIDE {
 		PROFILE_ME;
+
+		m_chunked = (response_headers.status_code / 100 >= 2) && (content_length == Poseidon::Http::ClientReader::CONTENT_CHUNKED);
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -188,12 +192,16 @@ protected:
 		}
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
-		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
-		const AUTO_REF(transfer_encoding, response_headers.headers.get("Transfer-Encoding"));
-		if(transfer_encoding.empty() || (::strcasecmp(transfer_encoding.c_str(), "identity") == 0)){
-			response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
+		if(m_chunked){
+			const AUTO_REF(transfer_encoding, response_headers.headers.get("Transfer-Encoding"));
+			if(transfer_encoding.empty() || (::strcasecmp(transfer_encoding.c_str(), "identity") == 0)){
+				response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
+			}
+			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
+			session->send_chunked_header(STD_MOVE(response_headers));
+		} else {
+			session->send(STD_MOVE(response_headers));
 		}
-		session->put_chunked_header(STD_MOVE(response_headers));
 		session->m_response_accepted = true;
 	}
 	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
@@ -205,7 +213,11 @@ protected:
 		}
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
-		session->put_chunk(STD_MOVE(entity));
+		if(m_chunked){
+			session->send_chunk(STD_MOVE(entity));
+		} else {
+			// Do nothing.
+		}
 	}
 	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers) OVERRIDE {
 		PROFILE_ME;
@@ -216,7 +228,11 @@ protected:
 		}
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
-		session->put_chunked_trailer(STD_MOVE(headers));
+		if(m_chunked){
+			session->send_chunked_trailer(STD_MOVE(headers));
+		} else {
+			// Do nothing.
+		}
 		unlink_and_shutdown(Poseidon::Http::ST_NO_CONTENT, 0, "");
 		return false;
 	}
@@ -257,13 +273,13 @@ protected:
 class ProxySession::RequestHeadersJob : public ProxySession::SyncJobBase {
 private:
 	Poseidon::Http::RequestHeaders m_request_headers;
-	bool m_chunked;
 	bool m_tunnel;
+	bool m_chunked;
 
 public:
-	RequestHeadersJob(const boost::shared_ptr<ProxySession> &session, Poseidon::Http::RequestHeaders request_headers, bool chunked, bool tunnel)
+	RequestHeadersJob(const boost::shared_ptr<ProxySession> &session, Poseidon::Http::RequestHeaders request_headers, bool tunnel, bool chunked)
 		: SyncJobBase(session)
-		, m_request_headers(STD_MOVE(request_headers)), m_chunked(chunked), m_tunnel(tunnel)
+		, m_request_headers(STD_MOVE(request_headers)), m_tunnel(tunnel), m_chunked(chunked)
 	{ }
 
 protected:
@@ -372,7 +388,7 @@ protected:
 				headers.set(Poseidon::sslit("X-Forwarded-For"), STD_MOVE(x_forwarded_for));
 			}
 
-			channel = boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay);
+			channel = boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay, m_tunnel);
 			SecondaryConnector::attach_channel(channel);
 			session->m_weak_channel = channel;
 
@@ -384,10 +400,10 @@ protected:
 				rewritten_headers.uri     = STD_MOVE(uri);
 				rewritten_headers.version = 10001;
 				rewritten_headers.headers = STD_MOVE(headers);
-				if(!m_chunked){
-					channel->put_request(STD_MOVE(rewritten_headers), VAL_INIT, false);
-				} else {
+				if(m_chunked){
 					channel->put_chunked_header(STD_MOVE(rewritten_headers));
+				} else {
+					channel->put_request(STD_MOVE(rewritten_headers), VAL_INIT, false);
 				}
 			}
 
@@ -420,10 +436,10 @@ protected:
 
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(channel){
-			if(!m_chunked){
-				channel->send(STD_MOVE(m_entity));
-			} else {
+			if(m_chunked){
 				channel->put_chunk(STD_MOVE(m_entity));
+			} else {
+				channel->send(STD_MOVE(m_entity));
 			}
 		}
 	}
@@ -446,10 +462,10 @@ protected:
 
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(channel){
-			if(!m_chunked){
-				// Do nothing
-			} else {
+			if(m_chunked){
 				channel->put_chunked_trailer(STD_MOVE(m_headers));
+			} else {
+				// Do nothing
 			}
 		}
 	}
@@ -478,7 +494,7 @@ protected:
 ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info)
 	: Poseidon::Http::LowLevelSession(STD_MOVE(socket))
 	, m_auth_info(STD_MOVE(auth_info))
-	, m_chunked(false), m_tunnel(false)
+	, m_tunnel(false), m_chunked(false)
 	, m_weak_channel(), m_response_accepted(false)
 {
 	LOG_MEDUSA2_INFO("ProxySession constructor: remote = ", get_remote_info());
@@ -553,11 +569,11 @@ void ProxySession::on_read_hup(){
 void ProxySession::on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length){
 	PROFILE_ME;
 
-	m_chunked = content_length == Poseidon::Http::ServerReader::CONTENT_CHUNKED;
 	m_tunnel = request_headers.verb == Poseidon::Http::V_CONNECT;
+	m_chunked = content_length == Poseidon::Http::ServerReader::CONTENT_CHUNKED;
 
 	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_chunked, m_tunnel),
+		boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_tunnel, m_chunked),
 		VAL_INIT);
 }
 void ProxySession::on_low_level_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity){
