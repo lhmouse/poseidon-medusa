@@ -29,13 +29,14 @@ private:
 
 	// sync
 	boost::weak_ptr<Channel> m_weak_channel;
-	bool m_response_accepted;
+	bool m_response_token;
 
 public:
 	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info);
 	~ProxySession();
 
 private:
+	bool sync_get_response_token() NOEXCEPT;
 	void sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::OptionalMap &headers = Poseidon::OptionalMap()) NOEXCEPT;
 	void low_level_enqueue_tunnel_data(Poseidon::StreamBuffer data);
 

@@ -92,16 +92,18 @@ private:
 		}
 		m_weak_session.reset();
 		session->m_weak_channel.reset();
+
+		shutdown(true);
 		session->sync_pretty_shutdown(status_code, err_code, err_msg, VAL_INIT);
 	}
 
 protected:
 	// SecondaryChannel
 	void on_sync_opened() OVERRIDE {
-		LOG_POSEIDON_DEBUG("Channel::on_sync_opened()");
+		LOG_MEDUSA2_DEBUG("Channel::on_sync_opened()");
 	}
 	void on_sync_established() OVERRIDE {
-		LOG_POSEIDON_DEBUG("Channel::on_sync_established()");
+		LOG_MEDUSA2_DEBUG("Channel::on_sync_established()");
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -115,14 +117,17 @@ protected:
 			response_headers.status_code = Poseidon::Http::ST_OK;
 			response_headers.reason      = "Connection Established";
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Keep-Alive");
-			session->put_response(STD_MOVE(response_headers), VAL_INIT, false);
-			session->m_response_accepted = true;
+			if(!session->sync_get_response_token()){
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
+				return;
+			}
+			session->send(STD_MOVE(response_headers));
 		} else {
-			// Do nothig.
+			// Do nothing.
 		}
 	}
 	void on_sync_received(Poseidon::StreamBuffer data) OVERRIDE {
-		LOG_POSEIDON_DEBUG("Channel::on_sync_received(): data.size() = ", data.size());
+		LOG_MEDUSA2_DEBUG("Channel::on_sync_received(): data.size() = ", data.size());
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -138,13 +143,13 @@ protected:
 			try {
 				put_encoded_data(STD_MOVE(data));
 			} catch(std::exception &e){
-				LOG_POSEIDON_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
+				LOG_MEDUSA2_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
 				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
 			}
 		}
 	}
 	void on_sync_closed(long err_code, std::string err_msg) OVERRIDE {
-		LOG_POSEIDON_DEBUG("Channel::on_sync_closed(): err_code = ", err_code, ", err_msg = ", err_msg);
+		LOG_MEDUSA2_DEBUG("Channel::on_sync_closed(): err_code = ", err_code, ", err_msg = ", err_msg);
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -181,7 +186,7 @@ protected:
 	}
 
 	// ClientReader
-	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t content_length) OVERRIDE {
+	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
 		PROFILE_ME;
 
 		m_chunked = response_headers.status_code / 100 >= 2;
@@ -190,6 +195,7 @@ protected:
 		if(!session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(!m_tunnel);
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
@@ -198,11 +204,18 @@ protected:
 				response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
 			}
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
+			if(!session->sync_get_response_token()){
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
+				return;
+			}
 			session->send_chunked_header(STD_MOVE(response_headers));
 		} else {
+			if(!session->sync_get_response_token()){
+				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
+				return;
+			}
 			session->send(STD_MOVE(response_headers));
 		}
-		session->m_response_accepted = true;
 	}
 	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
 		PROFILE_ME;
@@ -211,6 +224,7 @@ protected:
 		if(!session){
 			return;
 		}
+		DEBUG_THROW_ASSERT(!m_tunnel);
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
@@ -226,6 +240,7 @@ protected:
 		if(!session){
 			return false;
 		}
+		DEBUG_THROW_ASSERT(!m_tunnel);
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
@@ -262,7 +277,7 @@ protected:
 		try {
 			really_perform(session);
 		} catch(std::exception &e){
-			LOG_POSEIDON_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
+			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
 			session->force_shutdown();
 		}
 	}
@@ -435,12 +450,13 @@ protected:
 		PROFILE_ME;
 
 		const AUTO(channel, session->m_weak_channel.lock());
-		if(channel){
-			if(m_chunked){
-				channel->put_chunk(STD_MOVE(m_entity));
-			} else {
-				channel->send(STD_MOVE(m_entity));
-			}
+		if(!channel){
+			return;
+		}
+		if(m_chunked){
+			channel->put_chunk(STD_MOVE(m_entity));
+		} else {
+			channel->send(STD_MOVE(m_entity));
 		}
 	}
 };
@@ -461,12 +477,13 @@ protected:
 		PROFILE_ME;
 
 		const AUTO(channel, session->m_weak_channel.lock());
-		if(channel){
-			if(m_chunked){
-				channel->put_chunked_trailer(STD_MOVE(m_headers));
-			} else {
-				// Do nothing
-			}
+		if(!channel){
+			return;
+		}
+		if(m_chunked){
+			channel->put_chunked_trailer(STD_MOVE(m_headers));
+		} else {
+			// Do nothing
 		}
 	}
 };
@@ -482,11 +499,12 @@ protected:
 		PROFILE_ME;
 
 		const AUTO(channel, session->m_weak_channel.lock());
-		session->m_weak_channel.reset();
-		if(channel){
-			channel->shutdown(false);
+		if(!channel){
+			return;
 		}
+		session->m_weak_channel.reset();
 
+		channel->shutdown(false);
 		session->shutdown_write();
 	}
 };
@@ -495,7 +513,7 @@ ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::s
 	: Poseidon::Http::LowLevelSession(STD_MOVE(socket))
 	, m_auth_info(STD_MOVE(auth_info))
 	, m_tunnel(false), m_chunked(false)
-	, m_weak_channel(), m_response_accepted(false)
+	, m_weak_channel(), m_response_token(false)
 {
 	LOG_MEDUSA2_INFO("ProxySession constructor: remote = ", get_remote_info());
 }
@@ -509,11 +527,20 @@ ProxySession::~ProxySession(){
 	}
 }
 
+bool ProxySession::sync_get_response_token() NOEXCEPT {
+	PROFILE_ME;
+
+	if(m_response_token){
+		return false;
+	}
+	m_response_token = true;
+	return true;
+}
 void ProxySession::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::OptionalMap &headers) NOEXCEPT
 try {
 	PROFILE_ME;
 
-	if(!m_response_accepted){
+	if(sync_get_response_token()){
 		Poseidon::Http::ResponseHeaders response_headers;
 		response_headers.version = 10001;
 		response_headers.status_code = status_code;
@@ -524,7 +551,6 @@ try {
 		response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
 		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
 		response_headers.headers.set(Poseidon::sslit("Content-Type"), "text/html; charset=utf-8");
-
 		Poseidon::Buffer_ostream entity_os;
 		entity_os <<"<html>"
 		          <<"<head>"
@@ -536,12 +562,8 @@ try {
 		          <<"  <p>Error " <<err_code <<": " <<err_msg <<".</p>"
 		          <<"</body>"
 		          <<"</html>";
-		AUTO(entity, STD_MOVE(entity_os.get_buffer()));
-
-		Poseidon::Http::ServerWriter::put_response(STD_MOVE(response_headers), STD_MOVE(entity), true);
-		m_response_accepted = true;
+		Poseidon::Http::ServerWriter::put_response(STD_MOVE(response_headers), STD_MOVE(entity_os.get_buffer()), true);
 	}
-
 	shutdown_read();
 	shutdown_write();
 } catch(std::exception &e){
