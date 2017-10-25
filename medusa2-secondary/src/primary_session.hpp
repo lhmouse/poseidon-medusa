@@ -21,7 +21,7 @@ private:
 private:
 	const Poseidon::Uuid m_session_uuid;
 
-	boost::shared_ptr<Poseidon::TimerItem> m_timer;
+	boost::shared_ptr<Poseidon::Timer> m_timer;
 	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<Channel> > m_channels;
 
 public:

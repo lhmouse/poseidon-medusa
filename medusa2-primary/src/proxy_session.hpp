@@ -21,7 +21,7 @@ private:
 	class ReadHupJob;
 
 private:
-	const boost::shared_ptr<const Poseidon::Http::AuthInfo> m_auth_info;
+	const boost::shared_ptr<const Poseidon::Http::AuthenticationContext> m_auth_ctx;
 
 	// low level
 	bool m_tunnel;
@@ -32,7 +32,7 @@ private:
 	bool m_response_token;
 
 public:
-	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info);
+	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx);
 	~ProxySession();
 
 private:

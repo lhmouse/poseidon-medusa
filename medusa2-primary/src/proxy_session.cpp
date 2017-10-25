@@ -4,7 +4,7 @@
 #include "secondary_channel.hpp"
 #include "mmain.hpp"
 #include "protocol/error_codes.hpp"
-#include <poseidon/http/authorization.hpp>
+#include <poseidon/http/authentication.hpp>
 #include <poseidon/http/exception.hpp>
 #include <poseidon/http/upgraded_session_base.hpp>
 #include <poseidon/http/client_reader.hpp>
@@ -322,8 +322,11 @@ protected:
 			LOG_MEDUSA2_INFO(">> Proxy-Authorization: ", headers.get("Proxy-Authorization"));
 			LOG_MEDUSA2_INFO(">> User-Agent: ", headers.get("User-Agent"));
 
-			if(session->m_auth_info){
-				Poseidon::Http::check_and_throw_if_unauthorized(session->m_auth_info, session->get_remote_info(), m_request_headers, true);
+			const AUTO_REF(proxy_authorization_str, headers.get("Proxy-Authorization"));
+			const AUTO(result, Poseidon::Http::check_authentication_digest(session->m_auth_ctx, session->get_remote_info(), verb, proxy_authorization_str));
+			if(result.first != Poseidon::Http::AUTH_SUCCEEDED){
+				LOG_MEDUSA2_DEBUG("Authentication failed: ", proxy_authorization_str);
+				Poseidon::Http::throw_authentication_failure_digest(session->m_auth_ctx, true, session->get_remote_info(), result.first);
 			}
 
 			std::string host;
@@ -509,9 +512,9 @@ protected:
 	}
 };
 
-ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthInfo> auth_info)
+ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx)
 	: Poseidon::Http::LowLevelSession(STD_MOVE(socket))
-	, m_auth_info(STD_MOVE(auth_info))
+	, m_auth_ctx(STD_MOVE(auth_ctx))
 	, m_tunnel(false), m_chunked(false)
 	, m_weak_channel(), m_response_token(false)
 {
