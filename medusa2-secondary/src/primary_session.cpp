@@ -199,12 +199,7 @@ public:
 			m_fetch_client = fetch_client;
 		}
 
-		bool no_more_data;
-		if(m_no_linger){
-			// Shut the connection down violently.
-			fetch_client->force_shutdown();
-			no_more_data = true;
-		} else {
+		if(!m_no_linger){
 			// Send some data, if any.
 			if(!m_send_queue.empty()){
 				Poseidon::StreamBuffer send_queue;
@@ -219,6 +214,7 @@ public:
 				LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
 				return false;
 			}
+
 			// If a TCP connection was established, notify the primary server.
 			if(!m_establishment_notified){
 				if(fetch_client->was_established_after_all()){
@@ -228,34 +224,40 @@ public:
 				}
 				m_establishment_notified = true;
 			}
-			// Read some data, if any.
-			Protocol::SP_Received msg;
-			msg.channel_uuid = get_channel_uuid();
-			do {
-				fetch_client->cut_recv_queue(msg.segment, no_more_data);
-			} while(!msg.segment.empty() && session->send(msg));
-		}
-		if(no_more_data){
-			// Clear the client.
-			m_shutdown_read = true;
-			m_shutdown_write = true;
-			fetch_client->shutdown_write();
-			m_fetch_client.reset();
-			const int syserrno = fetch_client->get_syserrno();
-			switch(syserrno){
-			case 0:
-				break;
-			case ECONNREFUSED:
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_REFUSED, Poseidon::get_error_desc(syserrno));
-			case ETIMEDOUT:
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_TIMED_OUT, Poseidon::get_error_desc(syserrno));
-			case ECONNRESET:
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_RESET_BY_PEER, Poseidon::get_error_desc(syserrno));
-			default:
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_LOST_UNSPECIFIED, Poseidon::get_error_desc(syserrno));
+
+			bool no_more_data;
+			{
+				// Read some data, if any.
+				Protocol::SP_Received msg;
+				msg.channel_uuid = get_channel_uuid();
+				do {
+					fetch_client->cut_recv_queue(msg.segment, no_more_data);
+				} while(!msg.segment.empty() && session->send(msg));
+			}
+			if(!no_more_data){
+				return false;
 			}
 		}
-		return no_more_data;
+
+		// Clear the client.
+		const int syserrno = fetch_client->get_syserrno();
+		m_shutdown_read = true;
+		m_shutdown_write = true;
+		fetch_client->force_shutdown();
+		m_fetch_client.reset();
+
+		switch(syserrno){
+		case ECONNREFUSED:
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_REFUSED, Poseidon::get_error_desc(syserrno));
+		case ETIMEDOUT:
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_TIMED_OUT, Poseidon::get_error_desc(syserrno));
+		case ECONNRESET:
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_RESET_BY_PEER, Poseidon::get_error_desc(syserrno));
+		default:
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_LOST_UNSPECIFIED, Poseidon::get_error_desc(syserrno));
+		case 0:
+			return true;
+		}
 	}
 };
 
