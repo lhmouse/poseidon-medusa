@@ -80,7 +80,9 @@ namespace {
 				}
 				const AUTO(channel, it->second);
 
+				const AUTO(bytes_to_acknowledge, msg.segment.size());
 				channel->on_sync_received(Poseidon::StreamBuffer(msg.segment));
+				send(Protocol::PS_Acknowledge(channel_uuid, bytes_to_acknowledge));
 			}
 			ON_MESSAGE(Protocol::SP_Closed, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));

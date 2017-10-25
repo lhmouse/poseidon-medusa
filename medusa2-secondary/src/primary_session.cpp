@@ -78,7 +78,7 @@ public:
 	}
 	int get_syserrno() const {
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		return m_syserrno;
+		return (m_syserrno < 0) ? 0 : m_syserrno;
 	}
 
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
@@ -201,6 +201,7 @@ public:
 
 		bool no_more_data;
 		if(m_no_linger){
+			// Shut the connection down violently.
 			fetch_client->force_shutdown();
 			no_more_data = true;
 		} else {
@@ -214,7 +215,6 @@ public:
 			if(m_shutdown_write){
 				fetch_client->shutdown_write();
 			}
-
 			if(!fetch_client->is_connected_or_closed()){
 				LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
 				return false;
@@ -241,7 +241,6 @@ public:
 			m_shutdown_write = true;
 			fetch_client->shutdown_write();
 			m_fetch_client.reset();
-
 			const int syserrno = fetch_client->get_syserrno();
 			switch(syserrno){
 			case 0:
@@ -256,7 +255,6 @@ public:
 				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_LOST_UNSPECIFIED, Poseidon::get_error_desc(syserrno));
 			}
 		}
-
 		return no_more_data;
 	}
 };
