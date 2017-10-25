@@ -266,7 +266,7 @@ protected:
 		PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
-		if(!session || session->has_been_shutdown_write()){
+		if(!session){
 			return;
 		}
 		try {
@@ -295,6 +295,10 @@ public:
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
+
+		if(session->has_been_shutdown_write()){
+			return;
+		}
 
 		AUTO_REF(verb, m_request_headers.verb);
 		AUTO_REF(uri, m_request_headers.uri);
@@ -449,6 +453,9 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
+		if(session->has_been_shutdown_write()){
+			return;
+		}
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(!channel){
 			return;
@@ -476,6 +483,9 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
+		if(session->has_been_shutdown_write()){
+			return;
+		}
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(!channel){
 			return;
@@ -526,7 +536,6 @@ protected:
 			return;
 		}
 		session->m_weak_channel.reset();
-
 		channel->shutdown(m_err_code != 0);
 	}
 };
