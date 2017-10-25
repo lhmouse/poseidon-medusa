@@ -38,6 +38,7 @@ protected:
 		if(!session){
 			return;
 		}
+
 		session->low_level_enqueue_tunnel_data(STD_MOVE(data));
 	}
 };
@@ -109,6 +110,7 @@ protected:
 		if(!session){
 			return;
 		}
+
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
@@ -133,6 +135,7 @@ protected:
 		if(!session){
 			return;
 		}
+
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
@@ -147,6 +150,9 @@ protected:
 				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
 			}
 		}
+
+		const AUTO(timeout, get_config<boost::uint64_t>("proxy_session_timeout", 300000));
+		session->set_timeout(timeout);
 	}
 	void on_sync_closed(long err_code, std::string err_msg) OVERRIDE {
 		LOG_MEDUSA2_DEBUG("Channel::on_sync_closed(): err_code = ", err_code, ", err_msg = ", err_msg);
@@ -155,6 +161,7 @@ protected:
 		if(!session){
 			return;
 		}
+
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
@@ -187,6 +194,7 @@ protected:
 			return;
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
+
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		response_headers.headers.erase("Prxoy-Authenticate");
@@ -220,6 +228,7 @@ protected:
 			return;
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
+
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
@@ -236,6 +245,7 @@ protected:
 			return false;
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
+
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
@@ -269,6 +279,7 @@ protected:
 		if(!session){
 			return;
 		}
+
 		try {
 			really_perform(session);
 		} catch(std::exception &e){
