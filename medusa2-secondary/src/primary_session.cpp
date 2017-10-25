@@ -106,12 +106,13 @@ private:
 	Poseidon::StreamBuffer m_send_queue;
 	bool m_shutdown_read;
 	bool m_shutdown_write;
+	bool m_no_linger;
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
 	Channel(const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<PrimarySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay)
 		: m_channel_uuid(channel_uuid), m_weak_session(session), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
-		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_fetch_client()
+		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_no_linger(false), m_fetch_client()
 	{
 		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 	}
@@ -150,13 +151,7 @@ public:
 			m_shutdown_read = true;
 		}
 		m_shutdown_write = true;
-
-		if(no_linger){
-			const AUTO(fetch_client, m_fetch_client);
-			if(fetch_client){
-				fetch_client->force_shutdown();
-			}
-		}
+		m_no_linger = no_linger;
 	}
 
 	bool update(){
@@ -204,34 +199,36 @@ public:
 			m_fetch_client = fetch_client;
 		}
 
-		// Send some data, if any.
-		if(!m_send_queue.empty()){
-			Poseidon::StreamBuffer send_queue;
-			send_queue.swap(m_send_queue);
-			fetch_client->send(STD_MOVE(send_queue));
-		}
-		// Shut down the write side if requested, after all data have been sent.
-		if(m_shutdown_write){
-			fetch_client->shutdown_write();
-		}
-
-		if(!fetch_client->is_connected_or_closed()){
-			LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
-			return false;
-		}
-		// If a TCP connection was established, notify the primary server.
-		if(!m_establishment_notified){
-			if(fetch_client->was_established_after_all()){
-				Protocol::SP_Established msg;
-				msg.channel_uuid = get_channel_uuid();
-				session->send(msg);
-			}
-			m_establishment_notified = true;
-		}
-
-		// Read some data, if any.
 		bool no_more_data;
-		{
+		if(m_no_linger){
+			fetch_client->force_shutdown();
+			no_more_data = true;
+		} else {
+			// Send some data, if any.
+			if(!m_send_queue.empty()){
+				Poseidon::StreamBuffer send_queue;
+				send_queue.swap(m_send_queue);
+				fetch_client->send(STD_MOVE(send_queue));
+			}
+			// Shut down the write side if requested, after all data have been sent.
+			if(m_shutdown_write){
+				fetch_client->shutdown_write();
+			}
+
+			if(!fetch_client->is_connected_or_closed()){
+				LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
+				return false;
+			}
+			// If a TCP connection was established, notify the primary server.
+			if(!m_establishment_notified){
+				if(fetch_client->was_established_after_all()){
+					Protocol::SP_Established msg;
+					msg.channel_uuid = get_channel_uuid();
+					session->send(msg);
+				}
+				m_establishment_notified = true;
+			}
+			// Read some data, if any.
 			Protocol::SP_Received msg;
 			msg.channel_uuid = get_channel_uuid();
 			do {
