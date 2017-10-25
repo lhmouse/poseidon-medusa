@@ -489,9 +489,13 @@ protected:
 };
 
 class ProxySession::ReadHupJob : public ProxySession::SyncJobBase {
+private:
+	const boost::shared_ptr<ProxySession> m_session;
+
 public:
 	explicit ReadHupJob(const boost::shared_ptr<ProxySession> &session)
 		: SyncJobBase(session)
+		, m_session(session)
 	{ }
 
 protected:
