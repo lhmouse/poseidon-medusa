@@ -328,10 +328,7 @@ protected:
 
 			LOG_MEDUSA2_INFO("New fetch request from ", session->get_remote_info());
 			LOG_MEDUSA2_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
-			LOG_MEDUSA2_DEBUG(">> Request headers: ", headers);
-			LOG_MEDUSA2_INFO(">> Proxy-Authorization: ", headers.get("Proxy-Authorization"));
-			LOG_MEDUSA2_INFO(">> Proxy-Authentication-Info: ", headers.get("Proxy-Authentication-Info"));
-			LOG_MEDUSA2_INFO(">> User-Agent: ", headers.get("User-Agent"));
+			LOG_MEDUSA2_INFO(">> Request headers: ", headers);
 
 			const AUTO_REF(proxy_authorization_str, headers.get("Proxy-Authorization"));
 			const AUTO(result, Poseidon::Http::check_authentication_digest(session->m_auth_ctx, session->get_remote_info(), verb, proxy_authorization_str));
@@ -406,7 +403,6 @@ protected:
 				headers.erase("Prxoy-Authenticate");
 				headers.erase("Proxy-Connection");
 				headers.erase("Proxy-Authentication-Info");
-
 				headers.set(Poseidon::sslit("Connection"), "Close");
 				headers.set(Poseidon::sslit("X-Forwarded-Host"), host);
 
@@ -590,21 +586,21 @@ try {
 		response_headers.status_code = status_code;
 		response_headers.reason = Poseidon::Http::get_status_code_desc(status_code).desc_short;
 		response_headers.headers = headers;
-		response_headers.headers.erase(Poseidon::sslit("Transfer-Encoding"));
-		response_headers.headers.erase(Poseidon::sslit("Content-Encoding"));
+		response_headers.headers.erase("Transfer-Encoding");
+		response_headers.headers.erase("Content-Encoding");
 		response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
 		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
 		response_headers.headers.set(Poseidon::sslit("Content-Type"), "text/html; charset=utf-8");
 		Poseidon::Buffer_ostream entity_os;
 		entity_os <<"<html>"
-		          <<"<head>"
-		          <<"  <title>" <<response_headers.status_code <<" " <<response_headers.reason <<"</title>"
-		          <<"</head>"
-		          <<"<body>"
-		          <<"  <h1>" <<response_headers.status_code <<" " <<response_headers.reason <<"</h1>"
-		          <<"  <hr />"
-		          <<"  <p>Error " <<err_code <<": " <<err_msg <<".</p>"
-		          <<"</body>"
+		          <<  "<head>"
+		          <<    "<title>" <<response_headers.status_code <<" " <<response_headers.reason <<"</title>"
+		          <<  "</head>"
+		          <<  "<body>"
+		          <<    "<h1>" <<response_headers.status_code <<" " <<response_headers.reason <<"</h1>"
+		          <<    "<hr />"
+		          <<    "<p>Error " <<err_code <<": " <<err_msg <<".</p>"
+		          <<  "</body>"
 		          <<"</html>";
 		Poseidon::Http::ServerWriter::put_response(STD_MOVE(response_headers), STD_MOVE(entity_os.get_buffer()), true);
 	}
