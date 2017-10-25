@@ -198,11 +198,15 @@ protected:
 		DEBUG_THROW_ASSERT(!m_tunnel);
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
+		response_headers.headers.erase("Prxoy-Authenticate");
+		response_headers.headers.erase("Proxy-Connection");
+		response_headers.headers.erase("Proxy-Authentication-Info");
 		if(m_chunked){
 			const AUTO_REF(transfer_encoding, response_headers.headers.get("Transfer-Encoding"));
 			if(transfer_encoding.empty() || (::strcasecmp(transfer_encoding.c_str(), "identity") == 0)){
 				response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
 			}
+			response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
 			if(!session->sync_get_response_token()){
 				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
@@ -320,6 +324,7 @@ protected:
 			LOG_MEDUSA2_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
 			LOG_MEDUSA2_DEBUG(">> Request headers: ", headers);
 			LOG_MEDUSA2_INFO(">> Proxy-Authorization: ", headers.get("Proxy-Authorization"));
+			LOG_MEDUSA2_INFO(">> Proxy-Authentication-Info: ", headers.get("Proxy-Authentication-Info"));
 			LOG_MEDUSA2_INFO(">> User-Agent: ", headers.get("User-Agent"));
 
 			const AUTO_REF(proxy_authorization_str, headers.get("Proxy-Authorization"));
@@ -394,6 +399,7 @@ protected:
 			} else {
 				headers.erase("Prxoy-Authenticate");
 				headers.erase("Proxy-Connection");
+				headers.erase("Proxy-Authentication-Info");
 
 				headers.set(Poseidon::sslit("Connection"), "Close");
 				headers.set(Poseidon::sslit("X-Forwarded-Host"), host);
