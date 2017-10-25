@@ -471,10 +471,12 @@ protected:
 		if(!channel){
 			return;
 		}
-		if(m_chunked){
-			channel->put_chunk(STD_MOVE(m_entity));
-		} else {
-			channel->send(STD_MOVE(m_entity));
+		if(!m_entity.empty()){
+			if(m_chunked){
+				channel->put_chunk(STD_MOVE(m_entity));
+			} else {
+				channel->send(STD_MOVE(m_entity));
+			}
 		}
 	}
 };
