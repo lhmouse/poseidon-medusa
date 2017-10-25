@@ -502,14 +502,32 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
+		session->shutdown_write();
+	}
+};
+
+class ProxySession::CloseJob : public ProxySession::SyncJobBase {
+private:
+	const boost::shared_ptr<ProxySession> m_session;
+	const int m_err_code;
+
+public:
+	CloseJob(const boost::shared_ptr<ProxySession> &session, int err_code)
+		: SyncJobBase(session)
+		, m_session(session), m_err_code(err_code)
+	{ }
+
+protected:
+	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+		PROFILE_ME;
+
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(!channel){
 			return;
 		}
 		session->m_weak_channel.reset();
 
-		channel->shutdown(false);
-		session->shutdown_write();
+		channel->shutdown(m_err_code != 0);
 	}
 };
 
@@ -590,6 +608,15 @@ void ProxySession::on_read_hup(){
 		VAL_INIT);
 
 	Poseidon::Http::LowLevelSession::on_read_hup();
+}
+void ProxySession::on_close(int err_code){
+	PROFILE_ME;
+
+	Poseidon::JobDispatcher::enqueue(
+		boost::make_shared<CloseJob>(virtual_shared_from_this<ProxySession>(), err_code),
+		VAL_INIT);
+
+	Poseidon::Http::LowLevelSession::on_close(err_code);
 }
 
 void ProxySession::on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length){

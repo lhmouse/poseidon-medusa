@@ -19,6 +19,7 @@ private:
 	class RequestEntityJob;
 	class RequestEndJob;
 	class ReadHupJob;
+	class CloseJob;
 
 private:
 	const boost::shared_ptr<const Poseidon::Http::AuthenticationContext> m_auth_ctx;
@@ -42,7 +43,7 @@ private:
 
 protected:
 	void on_read_hup() OVERRIDE;
-	//void on_close(int err_code) OVERRIDE;
+	void on_close(int err_code) OVERRIDE;
 
 	void on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length) OVERRIDE;
 	void on_low_level_request_entity(boost::uint64_t entity_offset, Poseidon::StreamBuffer entity) OVERRIDE;
