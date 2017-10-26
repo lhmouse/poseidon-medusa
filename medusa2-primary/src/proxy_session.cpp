@@ -172,7 +172,7 @@ protected:
 			if(is_content_till_eof()){
 				terminate_content();
 			}
-			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, (err_code == 0) ? Protocol::ERR_ORIGIN_EMPTY_RESPONSE : 0, (err_code == 0) ? "The origin server sent no data" : "");
+			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, (err_code == 0) ? Protocol::ERR_ORIGIN_EMPTY_RESPONSE : Protocol::ERR_SUCCESS, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
 		}
 	}
 
@@ -599,7 +599,43 @@ try {
 		          <<  "<body>"
 		          <<    "<h1>" <<response_headers.status_code <<" " <<response_headers.reason <<"</h1>"
 		          <<    "<hr />"
-		          <<    "<p>Error " <<err_code <<": " <<err_msg <<".</p>"
+		          <<    "<p>Error " <<err_code <<": ";
+		if(!err_msg || !*err_msg){
+			err_msg = "No reason given";
+		}
+		const char *read = err_msg;
+		int last = -1;
+		for(;;){
+			const int ch = static_cast<unsigned char>(*(read++));
+			if(ch == 0){
+				break;
+			}
+			switch(ch){
+			case '<':
+				entity_os <<"&lt;";
+				break;
+			case '>':
+				entity_os <<"&gt;";
+				break;
+			case '&':
+				entity_os <<"&amp;";
+				break;
+			case '\"':
+				entity_os <<"&quot;";
+				break;
+			case '\'':
+				entity_os <<"&apos;";
+				break;
+			default:
+				entity_os <<static_cast<char>(ch);
+				break;
+			}
+			last = ch;
+		}
+		if(std::isalnum(last)){
+			entity_os <<'.';
+		}
+		entity_os <<    "</p>"
 		          <<  "</body>"
 		          <<"</html>";
 		Poseidon::Http::ServerWriter::put_response(STD_MOVE(response_headers), STD_MOVE(entity_os.get_buffer()), true);
