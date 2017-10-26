@@ -84,18 +84,12 @@ public:
 	}
 
 private:
-	void unlink_and_shutdown(Poseidon::Http::StatusCode status_code, long err_code, const char *err_msg) NOEXCEPT {
+	void sync_unlink_and_shutdown(bool no_linger) NOEXCEPT {
 		PROFILE_ME;
 
-		const AUTO(session, m_weak_session.lock());
-		if(!session){
-			return;
-		}
 		m_weak_session.reset();
-		session->m_weak_channel.reset();
 
-		shutdown(true);
-		session->sync_pretty_shutdown(status_code, err_code, err_msg, VAL_INIT);
+		shutdown(no_linger);
 	}
 
 protected:
@@ -120,7 +114,7 @@ protected:
 			response_headers.reason      = "Connection Established";
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Keep-Alive");
 			if(!session->sync_get_response_token()){
-				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
+				sync_unlink_and_shutdown(true);
 				return;
 			}
 			session->send(STD_MOVE(response_headers));
@@ -147,7 +141,8 @@ protected:
 				put_encoded_data(STD_MOVE(data));
 			} catch(std::exception &e){
 				LOG_MEDUSA2_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
-				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
+				sync_unlink_and_shutdown(true);
+				session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
 			}
 		}
 
@@ -165,14 +160,14 @@ protected:
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
-			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
+			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
 			if(is_content_till_eof()){
 				terminate_content();
 			}
-			unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, (err_code == 0) ? Protocol::ERR_ORIGIN_EMPTY_RESPONSE : Protocol::ERR_SUCCESS, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
+			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, (err_code == 0) ? static_cast<long>(Protocol::ERR_ORIGIN_EMPTY_RESPONSE) : err_code, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
 		}
 	}
 
@@ -197,6 +192,10 @@ protected:
 
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
+		if(!session->sync_get_response_token()){
+			sync_unlink_and_shutdown(true);
+			return;
+		}
 		response_headers.headers.erase("Prxoy-Authenticate");
 		response_headers.headers.erase("Proxy-Connection");
 		response_headers.headers.erase("Proxy-Authentication-Info");
@@ -207,16 +206,8 @@ protected:
 			}
 			response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
-			if(!session->sync_get_response_token()){
-				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
-				return;
-			}
 			session->send_chunked_header(STD_MOVE(response_headers));
 		} else {
-			if(!session->sync_get_response_token()){
-				unlink_and_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, "ProxySession is going away");
-				return;
-			}
 			session->send(STD_MOVE(response_headers));
 		}
 	}
@@ -253,7 +244,7 @@ protected:
 		} else {
 			// Do nothing.
 		}
-		unlink_and_shutdown(Poseidon::Http::ST_NO_CONTENT, 0, "");
+		sync_unlink_and_shutdown(false);
 		return false;
 	}
 };
@@ -522,6 +513,11 @@ protected:
 		PROFILE_ME;
 
 		session->shutdown_write();
+
+		const AUTO(channel, session->m_weak_channel.lock());
+		if(channel){
+			channel->shutdown(false);
+		}
 	}
 };
 
@@ -540,12 +536,7 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
-		const AUTO(channel, session->m_weak_channel.lock());
-		if(!channel){
-			return;
-		}
 		session->m_weak_channel.reset();
-		channel->shutdown(m_err_code != 0);
 	}
 };
 
