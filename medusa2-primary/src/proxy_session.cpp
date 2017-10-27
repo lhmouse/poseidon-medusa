@@ -251,7 +251,7 @@ protected:
 
 class ProxySession::SyncJobBase : public Poseidon::JobBase {
 private:
-	const SocketBase::DelayedShutdownGuard m_guard;
+	const Poseidon::SocketBase::DelayedShutdownGuard m_guard;
 	const boost::weak_ptr<ProxySession> m_weak_session;
 
 public:
