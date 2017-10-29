@@ -81,7 +81,7 @@ Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
 
 	AUTO(user_it, g_authorized_users.begin());
 	DEBUG_THROW_ASSERT(g_authorized_users.size() > 0);
-	std::advance(user_it, static_cast<int>(Poseidon::random_uint32() % g_authorized_users.size()));
+	std::advance(user_it, static_cast<std::ptrdiff_t>(Poseidon::random_uint32() % g_authorized_users.size()));
 	// USERNAME: 16 bytes
 	ciphertext.put(user_it->first.data(), 16);
 	const boost::uint64_t timestamp = utc_now;
