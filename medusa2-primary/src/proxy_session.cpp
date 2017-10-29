@@ -536,6 +536,10 @@ protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
 		PROFILE_ME;
 
+		const AUTO(channel, session->m_weak_channel.lock());
+		if(channel){
+			channel->shutdown(true);
+		}
 		session->m_weak_channel.reset();
 	}
 };
