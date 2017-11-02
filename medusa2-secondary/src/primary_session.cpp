@@ -9,6 +9,7 @@
 #include <poseidon/singletons/timer_daemon.hpp>
 #include <poseidon/sock_addr.hpp>
 #include <poseidon/singletons/dns_daemon.hpp>
+#include <poseidon/singletons/epoll_daemon.hpp>
 
 namespace Medusa2 {
 namespace Secondary {
@@ -195,7 +196,7 @@ public:
 			if(m_no_delay){
 				fetch_client->set_no_delay();
 			}
-			fetch_client->go_resident();
+			Poseidon::EpollDaemon::add_socket(fetch_client, false);
 			m_fetch_client = fetch_client;
 		}
 
