@@ -427,10 +427,10 @@ protected:
 			const AUTO(timeout, get_config<boost::uint64_t>("proxy_session_timeout", 300000));
 			session->set_timeout(timeout);
 		} catch(Poseidon::Http::Exception &e){
-			LOG_MEDUSA2_WARNING("Http::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
+			LOG_MEDUSA2_WARNING("Http::Exception thrown: remote = ", session->get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
 			session->sync_pretty_shutdown(e.get_status_code(), Protocol::ERR_CONNECTION_CANCELLED, e.what(), e.get_headers());
 		} catch(std::exception &e){
-			LOG_MEDUSA2_WARNING("std::exception thrown: what = ", e.what());
+			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
 			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
 		}
 	}
@@ -638,7 +638,7 @@ try {
 	shutdown_read();
 	shutdown_write();
 } catch(std::exception &e){
-	LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+	LOG_MEDUSA2_ERROR("std::exception remote = ", get_remote_info(), ", thrown: what = ", e.what());
 	force_shutdown();
 }
 void ProxySession::low_level_enqueue_tunnel_data(Poseidon::StreamBuffer data){
