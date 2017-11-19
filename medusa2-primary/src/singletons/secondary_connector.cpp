@@ -159,8 +159,9 @@ namespace {
 		client = boost::make_shared<SecondaryClient>(sock_addr, use_ssl);
 		client->set_no_delay();
 		client->go_resident();
-		client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
 		g_weak_client = client;
+
+		client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
 	}
 
 	MODULE_RAII(handles){
