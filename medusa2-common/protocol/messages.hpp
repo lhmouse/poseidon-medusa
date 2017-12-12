@@ -43,6 +43,13 @@ namespace Protocol {
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 
+#define MESSAGE_NAME   PS_Ping
+#define MESSAGE_ID     3005
+#define MESSAGE_FIELDS \
+	FIELD_FLEXIBLE     (opaque)	\
+	//
+#include <poseidon/cbpp/message_generator.hpp>
+
 #define MESSAGE_NAME   SP_Opened
 #define MESSAGE_ID     4001
 #define MESSAGE_FIELDS \
@@ -72,6 +79,13 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_VINT         (err_code)	\
 	FIELD_STRING       (err_msg)	\
+	//
+#include <poseidon/cbpp/message_generator.hpp>
+
+#define MESSAGE_NAME   SP_Pong
+#define MESSAGE_ID     4005
+#define MESSAGE_FIELDS \
+	FIELD_FLEXIBLE     (opaque)	\
 	//
 #include <poseidon/cbpp/message_generator.hpp>
 

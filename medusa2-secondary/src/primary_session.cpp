@@ -275,6 +275,7 @@ void PrimarySession::sync_timer_proc(const boost::weak_ptr<PrimarySession> &weak
 PrimarySession::PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket)
 	: Poseidon::Cbpp::Session(STD_MOVE(socket))
 	, m_session_uuid(Poseidon::Uuid::random())
+	, m_authenticated(false)
 {
 	LOG_MEDUSA2_INFO("PrimarySession constructor: remote = ", get_remote_info());
 }
@@ -323,8 +324,17 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
-	AUTO(plaintext, Common::decrypt(STD_MOVE(payload)));
+	Poseidon::StreamBuffer plaintext;
+	try {
+		plaintext = Common::decrypt(STD_MOVE(payload));
+	} catch(std::exception &e){
+		LOG_MEDUSA2_ERROR("Failed to decrypt message: remote = ", get_remote_info(), ", what = ", e.what());
+		force_shutdown();
+		return;
+	}
 	LOG_MEDUSA2_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
+	m_authenticated = true;
+
 	switch(message_id){
 		{{
 #define ON_MESSAGE(Msg_, msg_)	\
@@ -389,6 +399,11 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 
 		channel->shutdown(msg.no_linger);
 	}
+	ON_MESSAGE(Protocol::PS_Ping, msg){
+		LOG_MEDUSA2_INFO("Received PING from ", get_remote_info(), ": ", msg);
+
+		send(Protocol::SP_Pong(STD_MOVE(msg.opaque)));
+	}
 //=============================================================================
 #undef ON_MESSAGE
 		}
@@ -397,6 +412,17 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
 		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
 	}
+}
+void PrimarySession::on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param){
+	PROFILE_ME;
+
+	if(!m_authenticated){
+		LOG_MEDUSA2_ERROR("PrimarySession is not authenticated: remote = ", get_remote_info());
+		force_shutdown();
+		return;
+	}
+
+	return Poseidon::Cbpp::Session::on_sync_control_message(status_code, STD_MOVE(param));
 }
 
 bool PrimarySession::send(boost::uint16_t message_id, Poseidon::StreamBuffer payload){

@@ -98,6 +98,9 @@ namespace {
 
 				channel->on_sync_closed(msg.err_code, STD_MOVE(msg.err_msg));
 			}
+			ON_MESSAGE(Protocol::SP_Pong, msg){
+				LOG_MEDUSA2_INFO("Received PONG from ", get_remote_info(), ": ", msg);
+			}
 //=============================================================================
 #undef ON_MESSAGE
 				}
@@ -161,7 +164,12 @@ namespace {
 		client->go_resident();
 		g_weak_client = client;
 
-		client->send_control(Poseidon::Cbpp::ST_PING, VAL_INIT);
+		std::basic_string<unsigned char> dummy_payload;
+		dummy_payload.resize(Poseidon::random_uint32() % 64);
+		for(AUTO(it, dummy_payload.begin()); it != dummy_payload.end(); ++it){
+			*it = Poseidon::random_uint32();
+		}
+		client->send(Protocol::PS_Ping(STD_MOVE(dummy_payload)));
 	}
 
 	MODULE_RAII(handles){

@@ -23,6 +23,7 @@ private:
 
 	boost::shared_ptr<Poseidon::Timer> m_timer;
 	boost::container::flat_multimap<Poseidon::Uuid, boost::shared_ptr<Channel> > m_channels;
+	bool m_authenticated;
 
 public:
 	explicit PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket);
@@ -31,6 +32,7 @@ public:
 protected:
 	void on_sync_timer();
 	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
+	void on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param) OVERRIDE;
 
 public:
 	const Poseidon::Uuid &get_session_uuid() const NOEXCEPT {
