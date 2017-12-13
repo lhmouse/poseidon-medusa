@@ -5,6 +5,7 @@
 #include "protocol/error_codes.hpp"
 #include "protocol/messages.hpp"
 #include <poseidon/cbpp/client.hpp>
+#include <poseidon/singletons/epoll_daemon.hpp>
 #include <poseidon/singletons/timer_daemon.hpp>
 #include <poseidon/sock_addr.hpp>
 #include <poseidon/singletons/dns_daemon.hpp>
@@ -161,7 +162,7 @@ namespace {
 		}
 		client = boost::make_shared<SecondaryClient>(sock_addr, use_ssl);
 		client->set_no_delay();
-		client->go_resident();
+		Poseidon::EpollDaemon::add_socket(client, true);
 		g_weak_client = client;
 
 		std::basic_string<unsigned char> dummy_payload;
