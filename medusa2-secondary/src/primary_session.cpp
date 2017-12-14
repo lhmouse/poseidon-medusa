@@ -102,7 +102,7 @@ private:
 	const bool m_use_ssl;
 	const bool m_no_delay;
 
-	boost::shared_ptr<const Poseidon::JobPromiseContainer<Poseidon::SockAddr> > m_promised_sock_addr;
+	boost::shared_ptr<const Poseidon::PromiseContainer<Poseidon::SockAddr> > m_promised_sock_addr;
 	bool m_establishment_notified;
 	Poseidon::StreamBuffer m_send_queue;
 	bool m_shutdown_read;
