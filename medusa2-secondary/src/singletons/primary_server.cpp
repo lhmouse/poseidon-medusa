@@ -16,7 +16,7 @@ namespace {
 		~PrimaryTcpServer(){ }
 
 	protected:
-		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) const OVERRIDE {
+		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) OVERRIDE {
 			AUTO(session, boost::make_shared<PrimarySession>(STD_MOVE(socket)));
 			session->set_no_delay();
 			return STD_MOVE_IDN(session);

@@ -27,7 +27,7 @@ namespace {
 		{ }
 
 	protected:
-		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) const OVERRIDE {
+		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) OVERRIDE {
 			AUTO(session, boost::make_shared<ProxySession>(STD_MOVE(socket), m_auth_ctx));
 			session->set_no_delay();
 			return STD_MOVE_IDN(session);
