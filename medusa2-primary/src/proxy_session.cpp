@@ -363,10 +363,7 @@ protected:
 			// uri = "/foo/bar/page.html?param=value"
 			if(host[0] == '['){
 				pos = host.find(']');
-				if(pos == std::string::npos){
-					LOG_MEDUSA2_WARNING("Invalid IPv6 address: host = ", host);
-					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid IPv6 address"));
-				}
+				DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::sslit("Invalid IPv6 address"));
 				pos = host.find(':', pos + 1);
 			} else {
 				pos = host.find(':');
@@ -374,14 +371,8 @@ protected:
 			if(pos != std::string::npos){
 				char *endptr;
 				const AUTO(port_val, std::strtoul(host.c_str() + pos + 1, &endptr, 10));
-				if(*endptr){
-					LOG_MEDUSA2_WARNING("Invalid port string: host = ", host, ", remote = ", session->get_remote_info());
-					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port string"));
-				}
-				if((port_val == 0) || (port_val >= 65535)){
-					LOG_MEDUSA2_WARNING("Invalid port number: host = ", host, ", remote = ", session->get_remote_info());
-					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Invalid port number"));
-				}
+				DEBUG_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::sslit("Invalid port string"));
+				DEBUG_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::sslit("Invalid port number"));
 				port = port_val;
 				host.erase(pos);
 			}

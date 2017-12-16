@@ -193,13 +193,9 @@ void SecondaryConnector::attach_channel(const boost::shared_ptr<SecondaryChannel
 	PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
-	if(!client){
-		LOG_MEDUSA2_WARNING("Connection to secondary server is not ready.");
-		DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Connection to secondary server is not ready"));
-	}
-
+	DEBUG_THROW_UNLESS(client, Poseidon::Exception, Poseidon::sslit("Connection to secondary server is not ready"));
 	const AUTO(pair, g_channels.emplace(channel->get_channel_uuid(), channel));
-	DEBUG_THROW_ASSERT(pair.second);
+	DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::sslit("Duplicate channel UUID"));
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = channel->get_channel_uuid();
