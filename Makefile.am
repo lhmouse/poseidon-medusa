@@ -11,3 +11,10 @@ SUBDIRS = \
 	medusa2-common	\
 	medusa2-primary	\
 	medusa2-secondary
+
+pkginclude_HEADERS =
+
+pkginclude_protocoldir = $(pkgincludedir)/protocol
+pkginclude_protocol_HEADERS = \
+	protocol/messages.hpp	\
+	protocol/error_codes.hpp

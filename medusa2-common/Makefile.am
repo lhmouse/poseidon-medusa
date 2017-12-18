@@ -24,10 +24,11 @@ pkgsysconf_DATA = \
 
 pkginclude_HEADERS =
 
-pkginclude_protocoldir = $(pkgincludedir)/protocol
-pkginclude_protocol_HEADERS = \
-	protocol/messages.hpp	\
-	protocol/error_codes.hpp
+pkginclude_commondir = $(pkgincludedir)/common
+pkginclude_common_HEADERS = \
+	src/precompiled.hpp	\
+	src/encryption.hpp	\
+	src/mmain.hpp
 
 lib_LTLIBRARIES = \
 	lib/libmedusa2-common.la

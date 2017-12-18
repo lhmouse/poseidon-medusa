@@ -10,6 +10,14 @@ pkgsysconfdir = $(sysconfdir)/@PACKAGE@
 pkgsysconf_DATA = \
 	etc/medusa2/medusa2-secondary-template.conf
 
+pkginclude_HEADERS =
+
+pkginclude_secondarydir = $(pkgincludedir)/secondary
+pkginclude_secondary_HEADERS = \
+	src/primary_session.hpp	\
+	src/singletons/primary_server.hpp	\
+	src/mmain.hpp
+
 lib_LTLIBRARIES = \
 	lib/libmedusa2-secondary.la
 
