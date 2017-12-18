@@ -2,7 +2,6 @@
 #define MEDUSA2_PROTOCOL_MESSAGES_HPP_
 
 #include <poseidon/cbpp/message_base.hpp>
-#include "messages_fwd.hpp"
 
 namespace Medusa2 {
 namespace Protocol {

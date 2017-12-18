@@ -26,7 +26,6 @@ pkginclude_HEADERS =
 
 pkginclude_protocoldir = $(pkgincludedir)/protocol
 pkginclude_protocol_HEADERS = \
-	protocol/messages_fwd.hpp	\
 	protocol/messages.hpp	\
 	protocol/error_codes.hpp
 
