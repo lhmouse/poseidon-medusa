@@ -34,6 +34,7 @@ lib_LTLIBRARIES = \
 	lib/libmedusa2-common.la
 
 lib_libmedusa2_common_la_SOURCES = \
+	src/message_rtti.cpp	\
 	src/encryption.cpp	\
 	src/mmain.cpp
 
