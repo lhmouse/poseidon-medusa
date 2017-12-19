@@ -19,6 +19,8 @@ namespace ErrorCodes {
 		ERR_UNKNOWN_CONTROL_CODE              =  -10,
 		ERR_DATA_CORRUPTED                    =  -11,
 		ERR_GONE_AWAY                         =  -12,
+		ERR_INVALID_ARGUMENT                  =  -13,
+		ERR_UNSUPPORTED                       =  -14,
 
 		ERR_DNS_FAILURE                       = 9001,
 		ERR_PRIVATE_ADDRESS_DISALLOWED        = 9002,
