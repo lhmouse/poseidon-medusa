@@ -10,7 +10,6 @@
 #include <poseidon/http/client_reader.hpp>
 #include <poseidon/http/client_writer.hpp>
 #include <poseidon/job_base.hpp>
-#include <poseidon/singletons/job_dispatcher.hpp>
 
 namespace Medusa2 {
 namespace Primary {
@@ -635,26 +634,20 @@ try {
 void ProxySession::low_level_enqueue_tunnel_data(Poseidon::StreamBuffer data){
 	PROFILE_ME;
 
-	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), false, STD_MOVE(data)),
-		VAL_INIT);
+	Poseidon::enqueue(boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), false, STD_MOVE(data)));
 }
 
 void ProxySession::on_read_hup(){
 	PROFILE_ME;
 
-	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<ReadHupJob>(virtual_shared_from_this<ProxySession>()),
-		VAL_INIT);
+	Poseidon::enqueue(boost::make_shared<ReadHupJob>(virtual_shared_from_this<ProxySession>()));
 
 	Poseidon::Http::LowLevelSession::on_read_hup();
 }
 void ProxySession::on_close(int err_code){
 	PROFILE_ME;
 
-	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<CloseJob>(virtual_shared_from_this<ProxySession>(), err_code),
-		VAL_INIT);
+	Poseidon::enqueue(boost::make_shared<CloseJob>(virtual_shared_from_this<ProxySession>(), err_code));
 
 	Poseidon::Http::LowLevelSession::on_close(err_code);
 }
@@ -665,9 +658,7 @@ void ProxySession::on_low_level_request_headers(Poseidon::Http::RequestHeaders r
 	m_tunnel = request_headers.verb == Poseidon::Http::V_CONNECT;
 	m_chunked = content_length == Poseidon::Http::ServerReader::CONTENT_CHUNKED;
 
-	Poseidon::JobDispatcher::enqueue(
-		boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_tunnel, m_chunked),
-		VAL_INIT);
+	Poseidon::enqueue(boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_tunnel, m_chunked));
 }
 void ProxySession::on_low_level_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity){
 	PROFILE_ME;
@@ -675,9 +666,7 @@ void ProxySession::on_low_level_request_entity(boost::uint64_t /*entity_offset*/
 	if(m_tunnel){
 		// Do nothing.
 	} else {
-		Poseidon::JobDispatcher::enqueue(
-			boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(entity)),
-			VAL_INIT);
+		Poseidon::enqueue(boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(entity)));
 	}
 }
 boost::shared_ptr<Poseidon::Http::UpgradedSessionBase> ProxySession::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers){
@@ -686,9 +675,7 @@ boost::shared_ptr<Poseidon::Http::UpgradedSessionBase> ProxySession::on_low_leve
 	if(m_tunnel){
 		return boost::make_shared<TunnelSession>(virtual_shared_from_this<ProxySession>());
 	} else {
-		Poseidon::JobDispatcher::enqueue(
-			boost::make_shared<RequestEndJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(headers)),
-			VAL_INIT);
+		Poseidon::enqueue(boost::make_shared<RequestEndJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(headers)));
 		return boost::make_shared<DeafSession>(virtual_shared_from_this<ProxySession>());
 	}
 }
