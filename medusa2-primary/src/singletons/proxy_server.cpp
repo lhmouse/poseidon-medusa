@@ -45,7 +45,7 @@ namespace {
 		const AUTO(auth, get_config_v<std::string>("proxy_server_auth"));
 		LOG_MEDUSA2_INFO("Secondary server: Creating ProxyTcpServer: bind:port = ", bind, ":", port);
 		const AUTO(tcp_server, boost::make_shared<ProxyTcpServer>(bind, port, cert, pkey, relm, auth));
-		Poseidon::EpollDaemon::add_socket(tcp_server);
+		Poseidon::EpollDaemon::add_socket(tcp_server, false);
 		handles.push(tcp_server);
 		g_weak_tcp_server = tcp_server;
 	}

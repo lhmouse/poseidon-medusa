@@ -32,7 +32,7 @@ namespace {
 		const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
 		LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryTcpServer: bind:port = ", bind, ":", port);
 		const AUTO(tcp_server, boost::make_shared<PrimaryTcpServer>(bind, port, cert, pkey));
-		Poseidon::EpollDaemon::add_socket(tcp_server);
+		Poseidon::EpollDaemon::add_socket(tcp_server, false);
 		handles.push(tcp_server);
 		g_weak_tcp_server = tcp_server;
 	}
