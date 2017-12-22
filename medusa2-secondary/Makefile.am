@@ -14,17 +14,17 @@ pkginclude_HEADERS =
 
 pkginclude_secondarydir = $(pkgincludedir)/secondary
 pkginclude_secondary_HEADERS = \
-	src/primary_session.hpp	\
-	src/singletons/primary_server.hpp	\
-	src/mmain.hpp
+	medusa2-secondary/src/primary_session.hpp	\
+	medusa2-secondary/src/singletons/primary_server.hpp	\
+	medusa2-secondary/src/mmain.hpp
 
 lib_LTLIBRARIES = \
 	lib/libmedusa2-secondary.la
 
 lib_libmedusa2_secondary_la_SOURCES = \
-	src/primary_session.cpp	\
-	src/singletons/primary_server.cpp	\
-	src/mmain.cpp
+	medusa2-secondary/src/primary_session.cpp	\
+	medusa2-secondary/src/singletons/primary_server.cpp	\
+	medusa2-secondary/src/mmain.cpp
 
 lib_libmedusa2_secondary_la_LDFLAGS = \
 	-module -no-undefined -version-info 0:0:0

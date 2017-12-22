@@ -10,10 +10,10 @@ AM_LIBS =
 	$(CXX) -x c++-header @DEFS@ $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -Wno-error $< -o $@
 
 BUILT_SOURCES = \
-	src/precompiled.hpp.gch
+	medusa2-common/src/precompiled.hpp.gch
 
 CLEANFILES = \
-	src/precompiled.hpp.gch
+	medusa2-common/src/precompiled.hpp.gch
 
 sysconf_DATA =
 
@@ -31,17 +31,17 @@ pkginclude_protocol_HEADERS = \
 
 pkginclude_commondir = $(pkgincludedir)/common
 pkginclude_common_HEADERS = \
-	src/precompiled.hpp	\
-	src/encryption.hpp	\
-	src/mmain.hpp
+	medusa2-common/src/precompiled.hpp	\
+	medusa2-common/src/encryption.hpp	\
+	medusa2-common/src/mmain.hpp
 
 lib_LTLIBRARIES = \
 	lib/libmedusa2-common.la
 
 lib_libmedusa2_common_la_SOURCES = \
 	../protocol/messages.cpp	\
-	src/encryption.cpp	\
-	src/mmain.cpp
+	medusa2-common/src/encryption.cpp	\
+	medusa2-common/src/mmain.cpp
 
 lib_libmedusa2_common_la_LDFLAGS = \
 	-module -no-undefined -version-info 0:0:0

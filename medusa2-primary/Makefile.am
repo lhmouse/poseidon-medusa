@@ -14,21 +14,21 @@ pkginclude_HEADERS =
 
 pkginclude_primarydir = $(pkgincludedir)/primary
 pkginclude_primary_HEADERS = \
-	src/secondary_channel.hpp	\
-	src/singletons/secondary_connector.hpp	\
-	src/proxy_session.hpp	\
-	src/singletons/proxy_server.hpp	\
-	src/mmain.hpp
+	medusa2-primary/src/secondary_channel.hpp	\
+	medusa2-primary/src/singletons/secondary_connector.hpp	\
+	medusa2-primary/src/proxy_session.hpp	\
+	medusa2-primary/src/singletons/proxy_server.hpp	\
+	medusa2-primary/src/mmain.hpp
 
 lib_LTLIBRARIES = \
 	lib/libmedusa2-primary.la
 
 lib_libmedusa2_primary_la_SOURCES = \
-	src/secondary_channel.cpp	\
-	src/singletons/secondary_connector.cpp	\
-	src/proxy_session.cpp	\
-	src/singletons/proxy_server.cpp	\
-	src/mmain.cpp
+	medusa2-primary/src/secondary_channel.cpp	\
+	medusa2-primary/src/singletons/secondary_connector.cpp	\
+	medusa2-primary/src/proxy_session.cpp	\
+	medusa2-primary/src/singletons/proxy_server.cpp	\
+	medusa2-primary/src/mmain.cpp
 
 lib_libmedusa2_primary_la_LDFLAGS = \
 	-module -no-undefined -version-info 0:0:0
