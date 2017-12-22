@@ -24,20 +24,20 @@ namespace {
 	};
 
 	boost::weak_ptr<PrimaryTcpServer> g_weak_tcp_server;
+}
 
-	MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
-		PROFILE_ME;
+MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+	PROFILE_ME;
 
-		const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
-		const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
-		const AUTO(cert, get_config<std::string>("primary_server_certificate"));
-		const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
-		LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryTcpServer: bind:port = ", bind, ":", port);
-		const AUTO(tcp_server, boost::make_shared<PrimaryTcpServer>(bind, port, cert, pkey));
-		Poseidon::EpollDaemon::add_socket(tcp_server, false);
-		handles.push(tcp_server);
-		g_weak_tcp_server = tcp_server;
-	}
+	const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
+	const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
+	const AUTO(cert, get_config<std::string>("primary_server_certificate"));
+	const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
+	LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryTcpServer: bind:port = ", bind, ":", port);
+	const AUTO(tcp_server, boost::make_shared<PrimaryTcpServer>(bind, port, cert, pkey));
+	Poseidon::EpollDaemon::add_socket(tcp_server, false);
+	handles.push(tcp_server);
+	g_weak_tcp_server = tcp_server;
 }
 
 }

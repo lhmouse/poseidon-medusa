@@ -35,22 +35,22 @@ namespace {
 	};
 
 	boost::weak_ptr<ProxyTcpServer> g_weak_tcp_server;
+}
 
-	MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
-		PROFILE_ME;
+MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+	PROFILE_ME;
 
-		const AUTO(bind, get_config<std::string>("proxy_server_bind", "127.0.0.1"));
-		const AUTO(port, get_config<boost::uint16_t>("proxy_server_port", 3808));
-		const AUTO(cert, get_config<std::string>("proxy_server_certificate"));
-		const AUTO(pkey, get_config<std::string>("proxy_server_private_key"));
-		const AUTO(relm, get_config<std::string>("proxy_server_realm"));
-		const AUTO(auth, get_config_v<std::string>("proxy_server_auth"));
-		LOG_MEDUSA2_INFO("Secondary server: Creating ProxyTcpServer: bind:port = ", bind, ":", port);
-		const AUTO(tcp_server, boost::make_shared<ProxyTcpServer>(bind, port, cert, pkey, relm, auth));
-		Poseidon::EpollDaemon::add_socket(tcp_server, false);
-		handles.push(tcp_server);
-		g_weak_tcp_server = tcp_server;
-	}
+	const AUTO(bind, get_config<std::string>("proxy_server_bind", "127.0.0.1"));
+	const AUTO(port, get_config<boost::uint16_t>("proxy_server_port", 3808));
+	const AUTO(cert, get_config<std::string>("proxy_server_certificate"));
+	const AUTO(pkey, get_config<std::string>("proxy_server_private_key"));
+	const AUTO(relm, get_config<std::string>("proxy_server_realm"));
+	const AUTO(auth, get_config_v<std::string>("proxy_server_auth"));
+	LOG_MEDUSA2_INFO("Secondary server: Creating ProxyTcpServer: bind:port = ", bind, ":", port);
+	const AUTO(tcp_server, boost::make_shared<ProxyTcpServer>(bind, port, cert, pkey, relm, auth));
+	Poseidon::EpollDaemon::add_socket(tcp_server, false);
+	handles.push(tcp_server);
+	g_weak_tcp_server = tcp_server;
 }
 
 }

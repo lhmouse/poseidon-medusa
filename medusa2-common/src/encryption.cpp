@@ -13,27 +13,6 @@ namespace {
 	boost::container::flat_map<boost::array<unsigned char, 16>, std::string> g_authorized_users;
 	boost::uint64_t g_message_lifetime = 60000;
 
-	MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
-		PROFILE_ME;
-		LOG_MEDUSA2_INFO("Initialize global cipher...");
-
-		const AUTO(users_v, get_config_v<std::string>("encryption_authorized_user"));
-		for(AUTO(it, users_v.begin()); it != users_v.end(); ++it){
-			const AUTO_REF(str, *it);
-			LOG_MEDUSA2_TRACE("> Authorized user: ", str);
-			const AUTO(pos, str.find(':'));
-			DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::sslit("Invalid encryption_authorized_user (Hint: encryption_authorized_user = USERNAME:PASSWORD)"));
-			DEBUG_THROW_UNLESS(pos != 0, Poseidon::Exception, Poseidon::sslit("Username must not be empty"));
-			DEBUG_THROW_UNLESS(pos <= 16, Poseidon::Exception, Poseidon::sslit("Username must contain no more than 16 bytes"));
-			boost::array<unsigned char, 16> username;
-			std::memset(username.data(), 0, 16);
-			std::memcpy(username.data(), str.data(), pos);
-			const AUTO(pair, g_authorized_users.emplace(username, str));
-			DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::sslit("Duplicate username"));
-		}
-		g_message_lifetime = get_config<boost::uint64_t>("encryption_message_lifetime", 60000);
-	}
-
 	::AES_KEY aes_key_init_192(const unsigned char *key_bytes){
 		::AES_KEY aes_key;
 		const int err_code = ::AES_set_encrypt_key(key_bytes, 192, &aes_key);
@@ -60,6 +39,27 @@ namespace {
 			b_out.put(out.data(), n);
 		}
 	}
+}
+
+MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
+	PROFILE_ME;
+	LOG_MEDUSA2_INFO("Initialize global cipher...");
+
+	const AUTO(users_v, get_config_v<std::string>("encryption_authorized_user"));
+	for(AUTO(it, users_v.begin()); it != users_v.end(); ++it){
+		const AUTO_REF(str, *it);
+		LOG_MEDUSA2_TRACE("> Authorized user: ", str);
+		const AUTO(pos, str.find(':'));
+		DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::sslit("Invalid encryption_authorized_user (Hint: encryption_authorized_user = USERNAME:PASSWORD)"));
+		DEBUG_THROW_UNLESS(pos != 0, Poseidon::Exception, Poseidon::sslit("Username must not be empty"));
+		DEBUG_THROW_UNLESS(pos <= 16, Poseidon::Exception, Poseidon::sslit("Username must contain no more than 16 bytes"));
+		boost::array<unsigned char, 16> username;
+		std::memset(username.data(), 0, 16);
+		std::memcpy(username.data(), str.data(), pos);
+		const AUTO(pair, g_authorized_users.emplace(username, str));
+		DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::sslit("Duplicate username"));
+	}
+	g_message_lifetime = get_config<boost::uint64_t>("encryption_message_lifetime", 60000);
 }
 
 Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
