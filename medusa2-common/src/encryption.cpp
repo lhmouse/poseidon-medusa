@@ -13,7 +13,8 @@ namespace {
 	boost::container::flat_map<boost::array<unsigned char, 16>, std::string> g_authorized_users;
 	boost::uint64_t g_message_lifetime = 60000;
 
-	MODULE_RAII_PRIORITY(, 1000){
+	MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
+		PROFILE_ME;
 		LOG_MEDUSA2_INFO("Initialize global cipher...");
 
 		const AUTO(users_v, get_config_v<std::string>("encryption_authorized_user"));

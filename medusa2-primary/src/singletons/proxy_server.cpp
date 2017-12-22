@@ -36,7 +36,9 @@ namespace {
 
 	boost::weak_ptr<ProxyTcpServer> g_weak_tcp_server;
 
-	MODULE_RAII(handles){
+	MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+		PROFILE_ME;
+
 		const AUTO(bind, get_config<std::string>("proxy_server_bind", "127.0.0.1"));
 		const AUTO(port, get_config<boost::uint16_t>("proxy_server_port", 3808));
 		const AUTO(cert, get_config<std::string>("proxy_server_certificate"));
