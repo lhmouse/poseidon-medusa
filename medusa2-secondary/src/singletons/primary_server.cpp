@@ -25,7 +25,7 @@ namespace {
 
 	boost::weak_ptr<PrimaryTcpServer> g_weak_tcp_server;
 
-	MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_ESSENTIAL){
+	MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
 		PROFILE_ME;
 
 		const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
