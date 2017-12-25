@@ -9,7 +9,7 @@ namespace Medusa2 {
 namespace Primary {
 
 namespace {
-	inline boost::shared_ptr<const Poseidon::Http::AuthenticationContext> create_auth_ctx_optional(const std::string &realm, const std::vector<std::string> &auth){
+	inline boost::shared_ptr<const Poseidon::Http::AuthenticationContext> create_auth_ctx_optional(const std::string &realm, const boost::container::vector<std::string> &auth){
 		if(auth.empty()){
 			return VAL_INIT;
 		}
@@ -21,7 +21,7 @@ namespace {
 		const boost::shared_ptr<const Poseidon::Http::AuthenticationContext> m_auth_ctx;
 
 	public:
-		ProxyTcpServer(const std::string &bind, unsigned port, const std::string &certificate, const std::string &private_key, const std::string &realm, const std::vector<std::string> &auth)
+		ProxyTcpServer(const std::string &bind, unsigned port, const std::string &certificate, const std::string &private_key, const std::string &realm, const boost::container::vector<std::string> &auth)
 			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), certificate.c_str(), private_key.c_str())
 			, m_auth_ctx(create_auth_ctx_optional(realm, auth))
 		{ }
