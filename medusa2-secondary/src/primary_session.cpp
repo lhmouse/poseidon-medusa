@@ -296,6 +296,7 @@ try {
 		const AUTO(channel_uuid, it->first);
 		const AUTO(channel, it->second);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
+		closed_msg.channel_uuid = channel_uuid;
 		try {
 			erase_it = channel->update();
 			closed_msg.err_code = 0;
