@@ -69,13 +69,14 @@ public:
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
 		return m_established_after_all;
 	}
-	void cut_recv_queue(std::basic_string<unsigned char> &segment, bool &no_more_data){
-		const AUTO(fragmentation_size, get_config<std::size_t>("fetch_fragmentation_size", 8192));
-		segment.resize(fragmentation_size);
-
+	void cut_recv_queue(Poseidon::StreamBuffer *segment, bool *no_more_data, std::size_t fragmentation_size){
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
-		segment.resize(m_recv_queue.get(&segment[0], segment.size()));
-		no_more_data = m_recv_queue.empty() && (m_syserrno >= 0);
+		if(segment){
+			*segment = m_recv_queue.cut_off(fragmentation_size);
+		}
+		if(no_more_data){
+			*no_more_data = m_recv_queue.empty() && (m_syserrno >= 0);
+		}
 	}
 	int get_syserrno() const {
 		const Poseidon::Mutex::UniqueLock lock(m_mutex);
@@ -132,10 +133,10 @@ public:
 		return m_channel_uuid;
 	}
 
-	void send(const std::basic_string<unsigned char> &segment){
+	void send(Poseidon::StreamBuffer segment){
 		PROFILE_ME;
 
-		m_send_queue.put(segment);
+		m_send_queue.splice(segment);
 	}
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
 		PROFILE_ME;
@@ -228,11 +229,12 @@ public:
 
 			bool no_more_data;
 			{
+				const AUTO(fragmentation_size, get_config<std::size_t>("fetch_fragmentation_size", 8192));
 				// Read some data, if any.
 				Protocol::SP_Received msg;
 				msg.channel_uuid = get_channel_uuid();
 				do {
-					fetch_client->cut_recv_queue(msg.segment, no_more_data);
+					fetch_client->cut_recv_queue(&msg.segment, &no_more_data, fragmentation_size);
 				} while(!msg.segment.empty() && session->send(msg));
 			}
 			if(!no_more_data){
@@ -288,24 +290,29 @@ try {
 	PROFILE_ME;
 	LOG_MEDUSA2_TRACE("Timer: remote = ", get_remote_info());
 
-	bool no_more_data;
-	for(AUTO(it, m_channels.begin()); it != m_channels.end(); no_more_data ? (it = m_channels.erase(it)) : ++it){
+	Protocol::SP_Closed closed_msg;
+	bool erase_it;
+	for(AUTO(it, m_channels.begin()); it != m_channels.end(); erase_it ? (it = m_channels.erase(it)) : ++it){
 		const AUTO(channel_uuid, it->first);
 		const AUTO(channel, it->second);
 		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
 		try {
-			no_more_data = channel->update();
-			if(no_more_data){
-				send(Protocol::SP_Closed(channel_uuid, 0, std::string()));
-			}
+			erase_it = channel->update();
+			closed_msg.err_code = 0;
+			closed_msg.err_msg  = VAL_INIT;
 		} catch(Poseidon::Cbpp::Exception &e){
 			LOG_MEDUSA2_INFO("Cbpp::Exception thrown: code = ", e.get_code(), ", what = ", e.what());
-			no_more_data = true;
-			send(Protocol::SP_Closed(channel_uuid, e.get_code(), e.what()));
+			erase_it = true;
+			closed_msg.err_code = e.get_code();
+			closed_msg.err_msg  = e.what();
 		} catch(std::exception &e){
 			LOG_MEDUSA2_INFO("std::exception thrown: what = ", e.what());
-			no_more_data = true;
-			send(Protocol::SP_Closed(channel_uuid, Protocol::ERR_INTERNAL_ERROR, e.what()));
+			erase_it = true;
+			closed_msg.err_code = Protocol::ERR_INTERNAL_ERROR;
+			closed_msg.err_msg  = e.what();
+		}
+		if(erase_it){
+			send(closed_msg);
 		}
 	}
 
@@ -356,7 +363,11 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
 		const AUTO(channel, boost::make_shared<Channel>(channel_uuid, virtual_shared_from_this<PrimarySession>(), STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
-		send(Protocol::SP_Opened(channel_uuid, STD_MOVE(msg.opaque)));
+
+		Protocol::SP_Opened open_msg;
+		open_msg.channel_uuid = channel_uuid;
+		open_msg.opaque       = STD_MOVE(msg.opaque);
+		send(open_msg);
 
 		(void)it;
 	}
@@ -371,7 +382,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		}
 		const AUTO(channel, it->second);
 
-		channel->send(msg.segment);
+		channel->send(STD_MOVE(msg.segment));
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));

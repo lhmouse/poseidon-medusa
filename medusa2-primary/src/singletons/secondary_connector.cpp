@@ -83,7 +83,11 @@ namespace {
 
 				const AUTO(bytes_to_acknowledge, msg.segment.size());
 				channel->on_sync_received(Poseidon::StreamBuffer(msg.segment));
-				send(Protocol::PS_Acknowledge(channel_uuid, bytes_to_acknowledge));
+
+				Protocol::PS_Acknowledge ack;
+				ack.channel_uuid         = channel_uuid;
+				ack.bytes_to_acknowledge = bytes_to_acknowledge;
+				send(ack);
 			}
 			ON_MESSAGE(Protocol::SP_Closed, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
@@ -165,12 +169,12 @@ namespace {
 		Poseidon::EpollDaemon::add_socket(client, true);
 		g_weak_client = client;
 
-		std::basic_string<unsigned char> dummy_payload;
-		dummy_payload.resize(Poseidon::random_uint32() % 64);
-		for(AUTO(it, dummy_payload.begin()); it != dummy_payload.end(); ++it){
-			*it = Poseidon::random_uint32();
+		Protocol::PS_Ping ping;
+		const unsigned len = Poseidon::random_uint32() % 256;
+		for(unsigned i = 0; i < len; ++i){
+			ping.opaque.put(Poseidon::random_uint32());
 		}
-		client->send(Protocol::PS_Ping(STD_MOVE(dummy_payload)));
+		client->send(ping);
 	}
 }
 

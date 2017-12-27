@@ -53,12 +53,11 @@ bool SecondaryChannel::send(Poseidon::StreamBuffer data){
 		return false;
 	}
 	try {
+		const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
 		Protocol::PS_Send msg;
 		msg.channel_uuid = get_channel_uuid();
 		do {
-			const AUTO(fragmentation_size, get_config<std::size_t>("proxy_fragmentation_size", 8192));
-			msg.segment.resize(fragmentation_size);
-			msg.segment.resize(data.get(&msg.segment[0], msg.segment.size()));
+			msg.segment = data.cut_off(fragmentation_size);
 		} while(!msg.segment.empty() && SecondaryConnector::send(msg));
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
