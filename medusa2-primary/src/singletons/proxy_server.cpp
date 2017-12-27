@@ -9,21 +9,14 @@ namespace Medusa2 {
 namespace Primary {
 
 namespace {
-	inline boost::shared_ptr<const Poseidon::Http::AuthenticationContext> create_auth_ctx_optional(const std::string &realm, const boost::container::vector<std::string> &auth){
-		if(auth.empty()){
-			return VAL_INIT;
-		}
-		return Poseidon::Http::create_authentication_context(realm, auth);
-	}
-
 	class ProxyTcpServer : public Poseidon::TcpServerBase {
 	private:
 		const boost::shared_ptr<const Poseidon::Http::AuthenticationContext> m_auth_ctx;
 
 	public:
-		ProxyTcpServer(const std::string &bind, unsigned port, const std::string &certificate, const std::string &private_key, const std::string &realm, const boost::container::vector<std::string> &auth)
-			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), certificate.c_str(), private_key.c_str())
-			, m_auth_ctx(create_auth_ctx_optional(realm, auth))
+		ProxyTcpServer(const std::string &bind, boost::uint16_t port, const std::string &cert, const std::string &pkey, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx)
+			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), cert.c_str(), pkey.c_str())
+			, m_auth_ctx(STD_MOVE(auth_ctx))
 		{ }
 
 	protected:
@@ -47,7 +40,11 @@ MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
 	const AUTO(relm, get_config<std::string>("proxy_server_realm"));
 	const AUTO(auth, get_config_v<std::string>("proxy_server_auth"));
 	LOG_MEDUSA2_INFO("Secondary server: Creating ProxyTcpServer: bind:port = ", bind, ":", port);
-	const AUTO(tcp_server, boost::make_shared<ProxyTcpServer>(bind, port, cert, pkey, relm, auth));
+	boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx;
+	if(!auth.empty()){
+		auth_ctx = Poseidon::Http::create_authentication_context(relm, auth);
+	}
+	const AUTO(tcp_server, boost::make_shared<ProxyTcpServer>(bind, port, cert, pkey, auth_ctx));
 	Poseidon::EpollDaemon::add_socket(tcp_server, false);
 	handles.push(tcp_server);
 	g_weak_tcp_server = tcp_server;

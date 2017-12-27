@@ -328,7 +328,7 @@ protected:
 			}
 
 			std::string host;
-			unsigned port = 80;
+			boost::uint16_t port = 80;
 			bool use_ssl = false;
 			bool no_delay = false;
 
@@ -369,10 +369,10 @@ protected:
 			}
 			if(pos != std::string::npos){
 				char *endptr;
-				const AUTO(port_val, std::strtoul(host.c_str() + pos + 1, &endptr, 10));
+				const unsigned long port_val = std::strtoul(host.c_str() + pos + 1, &endptr, 10);
 				DEBUG_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::sslit("Invalid port string"));
 				DEBUG_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::sslit("Invalid port number"));
-				port = port_val;
+				port = boost::numeric_cast<boost::uint16_t>(port_val);
 				host.erase(pos);
 			}
 			// host = "www.example.com"

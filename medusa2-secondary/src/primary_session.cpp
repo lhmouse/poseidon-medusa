@@ -99,7 +99,7 @@ private:
 	const boost::weak_ptr<PrimarySession> m_weak_session;
 
 	const std::string m_host;
-	const unsigned m_port;
+	const boost::uint16_t m_port;
 	const bool m_use_ssl;
 	const bool m_no_delay;
 
@@ -112,7 +112,7 @@ private:
 	boost::shared_ptr<FetchClient> m_fetch_client;
 
 public:
-	Channel(const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<PrimarySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay)
+	Channel(const Poseidon::Uuid &channel_uuid, const boost::shared_ptr<PrimarySession> &session, std::string host, boost::uint16_t port, bool use_ssl, bool no_delay)
 		: m_channel_uuid(channel_uuid), m_weak_session(session), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_no_linger(false), m_fetch_client()
 	{
@@ -447,7 +447,7 @@ bool PrimarySession::send(boost::uint16_t message_id, Poseidon::StreamBuffer pay
 bool PrimarySession::send(const Poseidon::Cbpp::MessageBase &msg){
 	PROFILE_ME;
 
-	return send(msg.get_id(), Poseidon::StreamBuffer(msg));
+	return send(boost::numeric_cast<boost::uint16_t>(msg.get_id()), Poseidon::StreamBuffer(msg));
 }
 
 }

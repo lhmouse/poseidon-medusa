@@ -127,7 +127,7 @@ namespace {
 		bool send(const Poseidon::Cbpp::MessageBase &msg){
 			PROFILE_ME;
 
-			return send(msg.get_id(), Poseidon::StreamBuffer(msg));
+			return send(boost::numeric_cast<boost::uint16_t>(msg.get_id()), Poseidon::StreamBuffer(msg));
 		}
 	};
 
@@ -172,7 +172,7 @@ namespace {
 		Protocol::PS_Ping ping;
 		const unsigned len = Poseidon::random_uint32() % 256;
 		for(unsigned i = 0; i < len; ++i){
-			ping.opaque.put(Poseidon::random_uint32());
+			ping.opaque.put(static_cast<unsigned char>(Poseidon::random_uint32()));
 		}
 		client->send(ping);
 	}

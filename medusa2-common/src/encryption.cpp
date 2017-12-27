@@ -28,13 +28,13 @@ namespace {
 				break;
 			}
 			for(unsigned i = 0; i < 16; ++i){
-				mask[i] = cnt;
+				mask[i] = static_cast<unsigned char>(cnt);
 				cnt = (cnt << 8) | (cnt >> 24);
 			}
 			++cnt;
 			::AES_encrypt(mask.data(), out.data(), &aes_key);
 			for(unsigned i = 0; i < 16; ++i){
-				out[i] ^= in[i];
+				out[i] = static_cast<unsigned char>(out[i] ^ in[i]);
 			}
 			b_out.put(out.data(), n);
 		}
