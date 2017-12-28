@@ -38,7 +38,7 @@ MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
 	const AUTO(cert, get_config<std::string>("proxy_server_certificate"));
 	const AUTO(pkey, get_config<std::string>("proxy_server_private_key"));
 	const AUTO(relm, get_config<std::string>("proxy_server_realm"));
-	const AUTO(auth, get_config_v<std::string>("proxy_server_auth"));
+	const AUTO(auth, get_config_all_raw("proxy_server_auth"));
 	LOG_MEDUSA2_INFO("Secondary server: Creating ProxyTcpServer: bind:port = ", bind, ":", port);
 	boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx;
 	if(!auth.empty()){

@@ -45,8 +45,8 @@ MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
 	PROFILE_ME;
 	LOG_MEDUSA2_INFO("Initialize global cipher...");
 
-	const AUTO(users_v, get_config_v<std::string>("encryption_authorized_user"));
-	for(AUTO(it, users_v.begin()); it != users_v.end(); ++it){
+	const AUTO(users, get_config_all_raw("encryption_authorized_user"));
+	for(AUTO(it, users.begin()); it != users.end(); ++it){
 		const AUTO_REF(str, *it);
 		LOG_MEDUSA2_TRACE("> Authorized user: ", str);
 		const AUTO(pos, str.find(':'));
