@@ -429,7 +429,7 @@ void PrimarySession::on_sync_control_message(Poseidon::Cbpp::StatusCode status_c
 	PROFILE_ME;
 
 	if(!m_authenticated){
-		LOG_MEDUSA2_ERROR("PrimarySession is not authenticated: remote = ", get_remote_info());
+		LOG_MEDUSA2_ERROR("PrimarySession has not authenticated: remote = ", get_remote_info());
 		force_shutdown();
 		return;
 	}
