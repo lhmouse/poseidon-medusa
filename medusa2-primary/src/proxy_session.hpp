@@ -1,3 +1,6 @@
+// 这个文件是 Medusa 服务器应用程序的一部分。
+// Copyleft 2017 - 2018, LH_Mouse. All wrongs reserved.
+
 #ifndef MEDUSA2_PRIMARY_PROXY_SESSION_HPP_
 #define MEDUSA2_PRIMARY_PROXY_SESSION_HPP_
 
