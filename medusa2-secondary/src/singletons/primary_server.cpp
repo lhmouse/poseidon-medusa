@@ -26,8 +26,6 @@ namespace {
 }
 
 MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
-	PROFILE_ME;
-
 	const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
 	const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
 	const AUTO(cert, get_config<std::string>("primary_server_certificate"));

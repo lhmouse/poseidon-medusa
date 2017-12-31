@@ -179,8 +179,6 @@ namespace {
 }
 
 MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
-	PROFILE_ME;
-
 	const AUTO(reconnect_delay, get_config<boost::uint64_t>("secondary_connector_reconnect_delay", 5000));
 	const AUTO(timer, Poseidon::TimerDaemon::register_timer(0, reconnect_delay, boost::bind(reconnect_timer_proc)));
 	handles.push(timer);
