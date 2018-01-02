@@ -201,13 +201,13 @@ protected:
 		response_headers.headers.erase("Prxoy-Authenticate");
 		response_headers.headers.erase("Proxy-Connection");
 		response_headers.headers.erase("Proxy-Authentication-Info");
+		response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
+		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
 		if(m_chunked){
 			const AUTO_REF(transfer_encoding, response_headers.headers.get("Transfer-Encoding"));
 			if(transfer_encoding.empty() || (::strcasecmp(transfer_encoding.c_str(), "identity") == 0)){
 				response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
 			}
-			response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
-			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
 			session->send_chunked_header(STD_MOVE(response_headers));
 		} else {
 			session->send(STD_MOVE(response_headers));
