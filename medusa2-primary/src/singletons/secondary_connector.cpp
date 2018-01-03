@@ -136,6 +136,18 @@ namespace {
 
 	boost::weak_ptr<SecondaryClient> g_weak_client;
 
+	Protocol::PS_Ping create_dummy_ping_message(){
+		PROFILE_ME;
+
+		unsigned char data[256];
+		std::size_t size = Poseidon::random_uint32() % 256;
+		std::generate(data, data + size, Poseidon::RandomBitGenerator_uint32());
+
+		Protocol::PS_Ping msg;
+		msg.opaque.put(data, size);
+		return msg;
+	}
+
 	void reconnect_timer_proc(){
 		PROFILE_ME;
 
@@ -168,16 +180,10 @@ namespace {
 			return;
 		}
 		client = boost::make_shared<SecondaryClient>(sock_addr, use_ssl);
+		client->send(create_dummy_ping_message());
 		client->set_no_delay();
 		Poseidon::EpollDaemon::add_socket(client, true);
 		g_weak_client = client;
-
-		Protocol::PS_Ping ping;
-		const unsigned len = Poseidon::random_uint32() % 256;
-		for(unsigned i = 0; i < len; ++i){
-			ping.opaque.put(static_cast<unsigned char>(Poseidon::random_uint32()));
-		}
-		client->send(ping);
 	}
 }
 
