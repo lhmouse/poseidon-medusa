@@ -70,20 +70,21 @@ Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
 	Poseidon::StreamBuffer ciphertext;
 	const AUTO(utc_now, Poseidon::get_utc_time());
 
+	// USERNAME: 16 bytes
 	AUTO(user_it, g_authorized_users.begin());
 	DEBUG_THROW_ASSERT(g_authorized_users.size() > 0);
 	std::advance(user_it, static_cast<std::ptrdiff_t>(Poseidon::random_uint32() % g_authorized_users.size()));
-	// USERNAME: 16 bytes
 	ciphertext.put(user_it->first.data(), 16);
-	const boost::uint64_t timestamp = utc_now;
-	boost::uint64_t timestamp_be;
-	Poseidon::store_be(timestamp_be, timestamp);
 	// TIMESTAMP: 8 bytes
-	ciphertext.put(&timestamp_be, 8);
-	Poseidon::Sha256_ostream sha256_os;
-	sha256_os <<timestamp <<'#' <<user_it->second <<'#';
-	AUTO(sha256, sha256_os.finalize());
+	const boost::uint64_t timestamp = utc_now;
+	boost::uint64_t temp64;
+	Poseidon::store_be(temp64, timestamp);
+	ciphertext.put(&temp64, 8);
 	// KEY_CHECKSUM: 8 bytes
+	Poseidon::Sha256_ostream sha256_os;
+	const std::size_t ciphertext_length = plaintext.size();
+	sha256_os <<timestamp <<'#' <<user_it->second <<'#' <<ciphertext_length <<'#';
+	AUTO(sha256, sha256_os.finalize());
 	ciphertext.put(sha256.data(), 8);
 	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
 	// DATA_CHECKSUM: 8 bytes
@@ -105,17 +106,18 @@ Poseidon::StreamBuffer decrypt(Poseidon::StreamBuffer ciphertext){
 	DEBUG_THROW_UNLESS(ciphertext.get(&username, 16) == 16, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting USERNAME"));
 	const AUTO(user_it, g_authorized_users.find(username));
 	DEBUG_THROW_UNLESS(user_it != g_authorized_users.end(), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("User not found"));
-	boost::uint64_t timestamp_be;
+	boost::uint64_t temp64;
 	// TIMESTAMP: 8 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(&timestamp_be, 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting TIMESTAMP"));
-	const boost::uint64_t timestamp = Poseidon::load_be(timestamp_be);
+	DEBUG_THROW_UNLESS(ciphertext.get(&temp64, 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting TIMESTAMP"));
+	const boost::uint64_t timestamp = Poseidon::load_be(temp64);
 	DEBUG_THROW_UNLESS(timestamp >= Poseidon::saturated_sub(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Request expired"));
 	DEBUG_THROW_UNLESS(timestamp < Poseidon::saturated_add(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Timestamp too far in the future"));
 	// KEY_CHECKSUM: 8 bytes
 	boost::array<unsigned char, 8> checksum;
 	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting KEY_CHECKSUM"));
 	Poseidon::Sha256_ostream sha256_os;
-	sha256_os <<timestamp <<'#' <<user_it->second <<'#';
+	const std::size_t ciphertext_length = ciphertext.size() - 8; // Remember to drop the DATA_CHECKSUM.
+	sha256_os <<timestamp <<'#' <<user_it->second <<'#' <<ciphertext_length <<'#';
 	AUTO(sha256, sha256_os.finalize());
 	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Incorrect key (checksum mismatch)"));
 	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
