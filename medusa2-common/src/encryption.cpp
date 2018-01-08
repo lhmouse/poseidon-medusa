@@ -102,39 +102,30 @@ Poseidon::StreamBuffer decrypt(Poseidon::StreamBuffer ciphertext){
 
 	boost::array<unsigned char, 16> username;
 	// USERNAME: 16 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(&username, 16) == 16, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM,
-		Poseidon::sslit("End of stream encountered, expecting USERNAME"));
+	DEBUG_THROW_UNLESS(ciphertext.get(&username, 16) == 16, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting USERNAME"));
 	const AUTO(user_it, g_authorized_users.find(username));
-	DEBUG_THROW_UNLESS(user_it != g_authorized_users.end(), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE,
-		Poseidon::sslit("User not found"));
+	DEBUG_THROW_UNLESS(user_it != g_authorized_users.end(), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("User not found"));
 	boost::uint64_t timestamp_be;
 	// TIMESTAMP: 8 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(&timestamp_be, 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM,
-		Poseidon::sslit("End of stream encountered, expecting TIMESTAMP"));
+	DEBUG_THROW_UNLESS(ciphertext.get(&timestamp_be, 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting TIMESTAMP"));
 	const boost::uint64_t timestamp = Poseidon::load_be(timestamp_be);
-	DEBUG_THROW_UNLESS(timestamp >= Poseidon::saturated_sub(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE,
-		Poseidon::sslit("Request expired"));
-	DEBUG_THROW_UNLESS(timestamp < Poseidon::saturated_add(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE,
-		Poseidon::sslit("Timestamp too far in the future"));
+	DEBUG_THROW_UNLESS(timestamp >= Poseidon::saturated_sub(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Request expired"));
+	DEBUG_THROW_UNLESS(timestamp < Poseidon::saturated_add(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Timestamp too far in the future"));
 	// KEY_CHECKSUM: 8 bytes
 	boost::array<unsigned char, 8> checksum;
-	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM,
-		Poseidon::sslit("End of stream encountered, expecting KEY_CHECKSUM"));
+	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting KEY_CHECKSUM"));
 	Poseidon::Sha256_ostream sha256_os;
 	sha256_os <<timestamp <<'#' <<user_it->second <<'#';
 	AUTO(sha256, sha256_os.finalize());
-	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE,
-		Poseidon::sslit("Incorrect key (checksum mismatch)"));
+	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::ERR_AUTHORIZATION_FAILURE, Poseidon::sslit("Incorrect key (checksum mismatch)"));
 	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
 	// DATA_CHECKSUM: 8 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM,
-		Poseidon::sslit("End of stream encountered, expecting DATA_CHECKSUM"));
+	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::ERR_END_OF_STREAM, Poseidon::sslit("End of stream encountered, expecting DATA_CHECKSUM"));
 	// DATA: ? bytes
 	aes_ctr_transform(plaintext, ciphertext, aes_key);
 	sha256_os <<timestamp <<'#' <<plaintext <<'#';
 	sha256 = sha256_os.finalize();
-	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::ERR_BAD_REQUEST,
-		Poseidon::sslit("Request not recognized (checksum mismatch)"));
+	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::ERR_BAD_REQUEST, Poseidon::sslit("Request not recognized (checksum mismatch)"));
 	return plaintext;
 }
 
