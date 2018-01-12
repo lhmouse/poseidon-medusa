@@ -305,9 +305,9 @@ try {
 			closed_msg.err_code = 0;
 			closed_msg.err_msg  = VAL_INIT;
 		} catch(Poseidon::Cbpp::Exception &e){
-			LOG_MEDUSA2_INFO("Cbpp::Exception thrown: code = ", e.get_code(), ", what = ", e.what());
+			LOG_MEDUSA2_INFO("Cbpp::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
 			erase_it = true;
-			closed_msg.err_code = e.get_code();
+			closed_msg.err_code = e.get_status_code();
 			closed_msg.err_msg  = e.what();
 		} catch(std::exception &e){
 			LOG_MEDUSA2_INFO("std::exception thrown: what = ", e.what());
@@ -325,8 +325,8 @@ try {
 		m_timer.reset();
 	}
 } catch(Poseidon::Cbpp::Exception &e){
-	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", code = ", e.get_code(), ", what = ", e.what());
-	shutdown(e.get_code(), e.what());
+	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
+	shutdown(e.get_status_code(), e.what());
 } catch(std::exception &e){
 	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
 	shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
