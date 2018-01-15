@@ -9,7 +9,7 @@ AC_LIBTOOL_DLOPEN
 AC_CHECK_LIB([poseidon-main], [main], [], [echo "***** FIX THIS ERROR *****"; exit -2;])
 
 AM_INIT_AUTOMAKE
-LT_INIT
+LT_INIT([disable-static], [dlopen])
 
 AC_CONFIG_FILES([
 	Makefile
