@@ -126,7 +126,7 @@ public:
 
 		const AUTO(fetch_client, m_fetch_client);
 		if(fetch_client){
-			LOG_MEDUSA2_WARNING("FetchClient was not shut down cleanly: channel_uuid = ", get_channel_uuid());
+			LOG_MEDUSA2_DEBUG("FetchClient was not shut down cleanly: channel_uuid = ", get_channel_uuid());
 			fetch_client->force_shutdown();
 		}
 	}

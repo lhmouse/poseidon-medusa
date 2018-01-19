@@ -80,7 +80,7 @@ public:
 	~Channel(){
 		const AUTO(session, m_weak_session.lock());
 		if(session){
-			LOG_MEDUSA2_WARNING("Channel was not shut down cleanly: channel_uuid = ", get_channel_uuid());
+			LOG_MEDUSA2_DEBUG("Channel was not shut down cleanly: channel_uuid = ", get_channel_uuid());
 			session->force_shutdown();
 		}
 	}
@@ -550,7 +550,7 @@ ProxySession::~ProxySession(){
 
 	const AUTO(channel, m_weak_channel.lock());
 	if(channel){
-		LOG_MEDUSA2_WARNING("Channel was not shut down cleanly: channel_uuid = ", channel->get_channel_uuid());
+		LOG_MEDUSA2_DEBUG("Channel was not shut down cleanly: channel_uuid = ", channel->get_channel_uuid());
 		channel->shutdown(true);
 	}
 }
