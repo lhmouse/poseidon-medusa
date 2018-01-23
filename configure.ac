@@ -15,6 +15,6 @@ AC_CONFIG_FILES([
 	Makefile
 	medusa2-common/Makefile
 	medusa2-primary/Makefile
-	medusa2-secondary/Makefile
-])
+	medusa2-secondary/Makefile])
+##_INSERT_NEW_MAKEFILE_HERE
 AC_OUTPUT
