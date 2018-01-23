@@ -30,7 +30,7 @@ sed -i -r -e "s,@@temp(-|_)late@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;
 ln -sf "./" "${_full_name}/${_full_name}"
 ln -sf "../etc/" "${_full_name}/etc"
 
-echo "Initializing directory configure files..."
+echo "Creating configure files..."
 touch "etc/${_prefix}/${_full_name}-template.conf"
 ln -sf "${_full_name}-template.conf" "etc/${_prefix}/${_full_name}.conf"
 
