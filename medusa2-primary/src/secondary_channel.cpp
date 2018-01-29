@@ -23,14 +23,14 @@ SecondaryChannel::~SecondaryChannel(){
 }
 
 bool SecondaryChannel::has_been_shutdown() const NOEXCEPT {
-	return Poseidon::atomic_load(m_shutdown, Poseidon::ATOMIC_ACQUIRE);
+	return Poseidon::atomic_load(m_shutdown, Poseidon::memorder_acquire);
 }
 bool SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
 	PROFILE_ME;
 
-	bool was_shutdown = Poseidon::atomic_load(m_shutdown, Poseidon::ATOMIC_ACQUIRE);
+	bool was_shutdown = Poseidon::atomic_load(m_shutdown, Poseidon::memorder_acquire);
 	if(!was_shutdown){
-		was_shutdown = Poseidon::atomic_exchange(m_shutdown, true, Poseidon::ATOMIC_ACQ_REL);
+		was_shutdown = Poseidon::atomic_exchange(m_shutdown, true, Poseidon::memorder_acq_rel);
 	}
 	if(was_shutdown){
 		return false;
