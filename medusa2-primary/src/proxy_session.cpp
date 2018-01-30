@@ -21,7 +21,9 @@ class ProxySession::TunnelSession : public Poseidon::Http::UpgradedSessionBase {
 public:
 	explicit TunnelSession(const boost::shared_ptr<ProxySession> &session)
 		: Poseidon::Http::UpgradedSessionBase(session)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void on_connect() OVERRIDE {
@@ -49,7 +51,9 @@ class ProxySession::DeafSession : public Poseidon::Http::UpgradedSessionBase {
 public:
 	explicit DeafSession(const boost::shared_ptr<ProxySession> &session)
 		: Poseidon::Http::UpgradedSessionBase(session)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void on_connect() OVERRIDE {
@@ -76,7 +80,9 @@ public:
 	Channel(const boost::shared_ptr<ProxySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay, bool tunnel)
 		: SecondaryChannel(STD_MOVE(host), port, use_ssl, no_delay)
 		, m_weak_session(session), m_tunnel(tunnel), m_chunked(false)
-	{ }
+	{
+		//
+	}
 	~Channel(){
 		const AUTO(session, m_weak_session.lock());
 		if(session){
@@ -259,7 +265,9 @@ private:
 public:
 	explicit SyncJobBase(const boost::shared_ptr<ProxySession> &session)
 		: m_guard(session), m_weak_session(session)
-	{ }
+	{
+		//
+	}
 
 protected:
 	boost::weak_ptr<const void> get_category() const FINAL {
@@ -294,7 +302,9 @@ public:
 	RequestHeadersJob(const boost::shared_ptr<ProxySession> &session, Poseidon::Http::RequestHeaders request_headers, bool tunnel, bool chunked)
 		: SyncJobBase(session)
 		, m_request_headers(STD_MOVE(request_headers)), m_tunnel(tunnel), m_chunked(chunked)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
@@ -438,7 +448,9 @@ public:
 	RequestEntityJob(const boost::shared_ptr<ProxySession> &session, bool chunked, Poseidon::StreamBuffer entity)
 		: SyncJobBase(session)
 		, m_chunked(chunked), m_entity(STD_MOVE(entity))
-	{ }
+	{
+		//
+	}
 
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
@@ -470,7 +482,9 @@ public:
 	RequestEndJob(const boost::shared_ptr<ProxySession> &session, bool chunked, Poseidon::OptionalMap headers)
 		: SyncJobBase(session)
 		, m_chunked(chunked), m_headers(STD_MOVE(headers))
-	{ }
+	{
+		//
+	}
 
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
@@ -499,7 +513,9 @@ public:
 	explicit ReadHupJob(const boost::shared_ptr<ProxySession> &session)
 		: SyncJobBase(session)
 		, m_session(session)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
@@ -523,7 +539,9 @@ public:
 	CloseJob(const boost::shared_ptr<ProxySession> &session, int err_code)
 		: SyncJobBase(session)
 		, m_session(session), m_err_code(err_code)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {

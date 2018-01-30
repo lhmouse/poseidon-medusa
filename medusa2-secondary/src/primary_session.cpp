@@ -30,7 +30,9 @@ public:
 	FetchClient(const Poseidon::SockAddr &addr, bool use_ssl)
 		: Poseidon::TcpClientBase(addr, use_ssl, true)
 		, m_connected_or_closed(false), m_established_after_all(false), m_recv_queue(), m_queue_size(0), m_syserrno(-1)
-	{ }
+	{
+		//
+	}
 
 protected:
 	void on_connect() OVERRIDE {

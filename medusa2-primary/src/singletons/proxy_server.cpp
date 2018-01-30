@@ -20,7 +20,9 @@ namespace {
 		ProxyTcpServer(const std::string &bind, boost::uint16_t port, const std::string &cert, const std::string &pkey, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx)
 			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), cert.c_str(), pkey.c_str())
 			, m_auth_ctx(STD_MOVE(auth_ctx))
-		{ }
+		{
+			//
+		}
 
 	protected:
 		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) OVERRIDE {
