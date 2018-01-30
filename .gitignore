@@ -37,3 +37,7 @@ description-pak
 lib
 bin
 sbin
+tmp
+
+*.save*
+*.swp
