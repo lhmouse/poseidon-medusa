@@ -4,7 +4,7 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 	-Winvalid-pch -Wno-missing-field-initializers -Wwrite-strings -Wsuggest-attribute=noreturn	\
 	-Wundef -Wshadow -Wstrict-aliasing=2 -Wstrict-overflow=2 -Wno-error=pragmas	\
 	-pipe -fPIC -DPIC -pthread
-AM_CXXFLAGS =
+AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
