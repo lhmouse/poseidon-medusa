@@ -231,7 +231,9 @@ protected:
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
-			session->send_chunk(STD_MOVE(entity));
+			if(!entity.empty()){
+				session->send_chunk(STD_MOVE(entity));
+			}
 		} else {
 			// Do nothing.
 		}
