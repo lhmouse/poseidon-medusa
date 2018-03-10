@@ -6,7 +6,7 @@ AC_PROG_CXX
 AC_PROG_LIBTOOL
 AC_LIBTOOL_DLOPEN
 
-AC_CHECK_LIB([poseidon-main], [main], [], [echo "***** FIX THIS ERROR *****"; exit -2;])
+AC_LANG([C++])
 
 AM_INIT_AUTOMAKE
 LT_INIT([disable-static], [dlopen])
