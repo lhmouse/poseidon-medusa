@@ -1,5 +1,3 @@
-ACLOCAL_AMFLAGS = -I m4
-AUTOMAKE_OPTIONS = foreign subdir-objects
 AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=unused-parameter	\
 	-Winvalid-pch -Wno-missing-field-initializers -Wwrite-strings -Wsuggest-attribute=noreturn	\
 	-Wundef -Wshadow -Wstrict-aliasing=2 -Wstrict-overflow=2 -Wno-error=pragmas	\
@@ -8,41 +6,41 @@ AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
 %.hpp.gch: %.hpp
-	$(CXX) -x c++-header @DEFS@ $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -Wno-error $< -o $@
+	$(CXX) -x c++-header ${DEFS} -I.. $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -Wno-error $< -o $@
 
-BUILT_SOURCES = \
+BUILT_SOURCES =	\
 	medusa2-common/src/precompiled.hpp.gch
 
-CLEANFILES = \
+CLEANFILES =	\
 	medusa2-common/src/precompiled.hpp.gch
 
 sysconf_DATA =
 
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
-pkgsysconf_DATA = \
+pkgsysconf_DATA =	\
 	etc/medusa2/main-template.conf	\
 	etc/medusa2/medusa2-common-template.conf
 
 pkginclude_HEADERS =
 
 pkginclude_protocoldir = $(pkgincludedir)/protocol
-pkginclude_protocol_HEADERS = \
+pkginclude_protocol_HEADERS =	\
 	../protocol/messages.hpp	\
 	../protocol/error_codes.hpp
 
 pkginclude_commondir = $(pkgincludedir)/common
-pkginclude_common_HEADERS = \
+pkginclude_common_HEADERS =	\
 	medusa2-common/src/precompiled.hpp	\
 	medusa2-common/src/encryption.hpp	\
 	medusa2-common/src/mmain.hpp
 
-lib_LTLIBRARIES = \
+lib_LTLIBRARIES =	\
 	lib/libmedusa2-common.la
 
-lib_libmedusa2_common_la_SOURCES = \
+lib_libmedusa2_common_la_SOURCES =	\
 	../protocol/messages.cpp	\
 	medusa2-common/src/encryption.cpp	\
 	medusa2-common/src/mmain.cpp
 
-lib_libmedusa2_common_la_LDFLAGS = \
+lib_libmedusa2_common_la_LDFLAGS =	\
 	-module -no-undefined -version-info 0:0:0

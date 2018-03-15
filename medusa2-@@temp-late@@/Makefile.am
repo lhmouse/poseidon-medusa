@@ -1,5 +1,3 @@
-ACLOCAL_AMFLAGS = -I m4
-AUTOMAKE_OPTIONS = foreign subdir-objects
 AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=unused-parameter	\
 	-Winvalid-pch -Wno-missing-field-initializers -Wwrite-strings -Wsuggest-attribute=noreturn	\
 	-Wundef -Wshadow -Wstrict-aliasing=2 -Wstrict-overflow=2 -Wno-error=pragmas	\
@@ -8,23 +6,23 @@ AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
 pkgsysconfdir = $(sysconfdir)/@PACKAGE@
-pkgsysconf_DATA = \
+pkgsysconf_DATA =	\
 	etc/medusa2/medusa2-@@temp-late@@-template.conf
 
 pkginclude_HEADERS =
 
 pkginclude_@@temp_late@@dir = $(pkgincludedir)/@@temp-late@@
-pkginclude_@@temp_late@@_HEADERS = \
+pkginclude_@@temp_late@@_HEADERS =	\
 	medusa2-@@temp-late@@/src/mmain.hpp
 
-lib_LTLIBRARIES = \
+lib_LTLIBRARIES =	\
 	lib/libmedusa2-@@temp-late@@.la
 
-lib_libmedusa2_@@temp_late@@_la_SOURCES = \
+lib_libmedusa2_@@temp_late@@_la_SOURCES =	\
 	medusa2-@@temp-late@@/src/mmain.cpp
 
-lib_libmedusa2_@@temp_late@@_la_LDFLAGS = \
+lib_libmedusa2_@@temp_late@@_la_LDFLAGS =	\
 	-module -no-undefined -version-info 0:0:0
 
-lib_libmedusa2_@@temp_late@@_la_LIBADD = \
+lib_libmedusa2_@@temp_late@@_la_LIBADD =	\
 	../medusa2-common/lib/libmedusa2-common.la
