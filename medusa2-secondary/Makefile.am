@@ -5,13 +5,13 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
-pkgsysconfdir = $(sysconfdir)/@PACKAGE@
+pkgsysconfdir = ${sysconfdir}/@PACKAGE@
 pkgsysconf_DATA =	\
 	etc/medusa2/medusa2-secondary-template.conf
 
 pkginclude_HEADERS =
 
-pkginclude_secondarydir = $(pkgincludedir)/secondary
+pkginclude_secondarydir = ${pkgincludedir}/secondary
 pkginclude_secondary_HEADERS =	\
 	medusa2-secondary/src/primary_session.hpp	\
 	medusa2-secondary/src/singletons/primary_server.hpp	\

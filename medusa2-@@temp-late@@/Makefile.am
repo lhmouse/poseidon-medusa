@@ -5,13 +5,13 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
-pkgsysconfdir = $(sysconfdir)/@PACKAGE@
+pkgsysconfdir = ${sysconfdir}/@PACKAGE@
 pkgsysconf_DATA =	\
 	etc/medusa2/medusa2-@@temp-late@@-template.conf
 
 pkginclude_HEADERS =
 
-pkginclude_@@temp_late@@dir = $(pkgincludedir)/@@temp-late@@
+pkginclude_@@temp_late@@dir = ${pkgincludedir}/@@temp-late@@
 pkginclude_@@temp_late@@_HEADERS =	\
 	medusa2-@@temp-late@@/src/mmain.hpp
 

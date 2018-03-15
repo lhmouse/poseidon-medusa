@@ -6,7 +6,7 @@ AM_CXXFLAGS = -Wnon-virtual-dtor
 AM_LIBS =
 
 %.hpp.gch: %.hpp
-	$(CXX) -x c++-header ${DEFS} -I.. $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -Wno-error $< -o $@
+	${CXX} -x c++-header ${DEFS} -I.. ${AM_CPPFLAGS} ${CPPFLAGS} ${AM_CXXFLAGS} ${CXXFLAGS} -Wno-error $< -o $@
 
 BUILT_SOURCES =	\
 	medusa2-common/src/precompiled.hpp.gch
@@ -16,19 +16,19 @@ CLEANFILES =	\
 
 sysconf_DATA =
 
-pkgsysconfdir = $(sysconfdir)/@PACKAGE@
+pkgsysconfdir = ${sysconfdir}/@PACKAGE@
 pkgsysconf_DATA =	\
 	etc/medusa2/main-template.conf	\
 	etc/medusa2/medusa2-common-template.conf
 
 pkginclude_HEADERS =
 
-pkginclude_protocoldir = $(pkgincludedir)/protocol
+pkginclude_protocoldir = ${pkgincludedir}/protocol
 pkginclude_protocol_HEADERS =	\
 	../protocol/messages.hpp	\
 	../protocol/error_codes.hpp
 
-pkginclude_commondir = $(pkgincludedir)/common
+pkginclude_commondir = ${pkgincludedir}/common
 pkginclude_common_HEADERS =	\
 	medusa2-common/src/precompiled.hpp	\
 	medusa2-common/src/encryption.hpp	\
