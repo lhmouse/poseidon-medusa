@@ -30,7 +30,7 @@ lib_libmedusa2_primary_la_SOURCES =	\
 	medusa2-primary/src/mmain.cpp
 
 lib_libmedusa2_primary_la_LDFLAGS =	\
-	-Wl,--no-allow-shlib-undefined -module -version-info 0:0:0
+	-Wl,--no-undefined -module -version-info 0:0:0
 
 lib_libmedusa2_primary_la_LIBADD =	\
 	../medusa2-common/lib/libmedusa2-common.la	\
