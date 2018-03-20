@@ -43,7 +43,7 @@ lib_libmedusa2_common_la_SOURCES =	\
 	medusa2-common/src/mmain.cpp
 
 lib_libmedusa2_common_la_LDFLAGS =	\
-	-module -no-undefined -version-info 0:0:0
+	-Wl,--no-allow-shlib-undefined -module -version-info 0:0:0
 
 lib_libmedusa2_common_la_LIBADD =	\
-	-lposeidon-main
+	-lposeidon-main -lcrypto -lssl

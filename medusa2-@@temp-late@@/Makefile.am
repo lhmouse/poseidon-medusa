@@ -22,7 +22,7 @@ lib_libmedusa2_@@temp_late@@_la_SOURCES =	\
 	medusa2-@@temp-late@@/src/mmain.cpp
 
 lib_libmedusa2_@@temp_late@@_la_LDFLAGS =	\
-	-module -no-undefined -version-info 0:0:0
+	-Wl,--no-allow-shlib-undefined -module -version-info 0:0:0
 
 lib_libmedusa2_@@temp_late@@_la_LIBADD =	\
 	../medusa2-common/lib/libmedusa2-common.la	\
