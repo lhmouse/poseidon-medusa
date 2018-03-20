@@ -44,3 +44,6 @@ lib_libmedusa2_common_la_SOURCES =	\
 
 lib_libmedusa2_common_la_LDFLAGS =	\
 	-module -no-undefined -version-info 0:0:0
+
+lib_libmedusa2_common_la_LIBADD =	\
+	-lposeidon-main
