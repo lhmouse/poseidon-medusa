@@ -110,6 +110,8 @@ protected:
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
+			LOG_MEDUSA2_DEBUG("Proxy client had disconnected before the connection to the origin server could be established.");
+			shutdown(true);
 			return;
 		}
 
@@ -135,6 +137,8 @@ protected:
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
+			LOG_MEDUSA2_DEBUG("Proxy client had disconnected while there are still some data to be transmitted.");
+			shutdown(true);
 			return;
 		}
 
