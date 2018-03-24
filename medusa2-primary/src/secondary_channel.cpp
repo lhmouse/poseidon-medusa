@@ -42,7 +42,7 @@ bool SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
 		SecondaryConnector::send(msg);
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		SecondaryConnector::shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		SecondaryConnector::shutdown(Protocol::error_internal_error, e.what());
 		return false;
 	}
 	return true;
@@ -64,7 +64,7 @@ bool SecondaryChannel::send(Poseidon::StreamBuffer data){
 		} while(!msg.segment.empty() && SecondaryConnector::send(msg));
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		SecondaryConnector::shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+		SecondaryConnector::shutdown(Protocol::error_internal_error, e.what());
 		return false;
 	}
 	return true;

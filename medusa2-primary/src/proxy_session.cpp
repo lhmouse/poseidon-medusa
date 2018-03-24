@@ -154,7 +154,7 @@ protected:
 			} catch(std::exception &e){
 				LOG_MEDUSA2_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
 				sync_unlink_and_shutdown(true);
-				session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
+				session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::error_origin_invalid_http_response, "The origin server sent no valid HTTP response");
 			}
 		}
 
@@ -179,7 +179,7 @@ protected:
 			if(is_content_till_eof()){
 				terminate_content();
 			}
-			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, (err_code == 0) ? static_cast<long>(Protocol::ERR_ORIGIN_EMPTY_RESPONSE) : err_code, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
+			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, (err_code == 0) ? static_cast<long>(Protocol::error_origin_empty_response) : err_code, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
 		}
 	}
 
@@ -437,10 +437,10 @@ protected:
 			session->set_timeout(timeout);
 		} catch(Poseidon::Http::Exception &e){
 			LOG_MEDUSA2_WARNING("Http::Exception thrown: remote = ", session->get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
-			session->sync_pretty_shutdown(e.get_status_code(), Protocol::ERR_CONNECTION_CANCELLED, e.what(), e.get_headers());
+			session->sync_pretty_shutdown(e.get_status_code(), Protocol::error_connection_cancelled, e.what(), e.get_headers());
 		} catch(std::exception &e){
 			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
-			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
+			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::error_connection_cancelled, e.what(), VAL_INIT);
 		}
 	}
 };

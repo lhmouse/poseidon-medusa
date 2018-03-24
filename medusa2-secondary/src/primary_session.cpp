@@ -171,7 +171,7 @@ public:
 		if(!fetch_client){
 			if(m_shutdown_read){
 				LOG_MEDUSA2_DEBUG("Connection was cancelled: host:port = ", m_host, ":", m_port);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_CANCELLED, Poseidon::sslit("Connection was cancelled"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_cancelled, Poseidon::sslit("Connection was cancelled"));
 			}
 
 			// Perform DNS lookup.
@@ -188,11 +188,11 @@ public:
 				sock_addr = m_promised_sock_addr->get();
 			} catch(std::exception &e){
 				LOG_MEDUSA2_DEBUG("DNS failure: what = ", e.what());
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_DNS_FAILURE, Poseidon::SharedNts(e.what()));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_dns_failure, Poseidon::SharedNts(e.what()));
 			}
 			if(sock_addr.is_private()){
 				LOG_MEDUSA2_DEBUG("Connections to private addresses are disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::IpPort(sock_addr));
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_PRIVATE_ADDRESS_DISALLOWED, Poseidon::sslit("Connections to private addresses are disallowed"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_private_address_disallowed, Poseidon::sslit("Connections to private addresses are disallowed"));
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating FetchClient: ip:port = ", Poseidon::IpPort(sock_addr));
 
@@ -256,13 +256,13 @@ public:
 
 		switch(syserrno){
 		case ECONNREFUSED:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_REFUSED, Poseidon::get_error_desc(syserrno));
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_refused, Poseidon::get_error_desc(syserrno));
 		case ETIMEDOUT:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_TIMED_OUT, Poseidon::get_error_desc(syserrno));
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_timed_out, Poseidon::get_error_desc(syserrno));
 		case ECONNRESET:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_RESET_BY_PEER, Poseidon::get_error_desc(syserrno));
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_reset_by_peer, Poseidon::get_error_desc(syserrno));
 		default:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_CONNECTION_LOST_UNSPECIFIED, Poseidon::get_error_desc(syserrno));
+			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_lost_unspecified, Poseidon::get_error_desc(syserrno));
 		case 0:
 			return true;
 		}
@@ -314,7 +314,7 @@ try {
 		} catch(std::exception &e){
 			LOG_MEDUSA2_INFO("std::exception thrown: what = ", e.what());
 			erase_it = true;
-			closed_msg.err_code = Protocol::ERR_INTERNAL_ERROR;
+			closed_msg.err_code = Protocol::error_internal_error;
 			closed_msg.err_msg  = e.what();
 		}
 		if(erase_it){
@@ -331,7 +331,7 @@ try {
 	shutdown(e.get_status_code(), e.what());
 } catch(std::exception &e){
 	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
-	shutdown(Protocol::ERR_INTERNAL_ERROR, e.what());
+	shutdown(Protocol::error_internal_error, e.what());
 }
 void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload){
 	PROFILE_ME;
@@ -427,7 +427,7 @@ void PrimarySession::on_sync_data_message(boost::uint16_t message_id, Poseidon::
 		break; }
 	default:
 		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
+		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::sslit("Unknown message"));
 	}
 }
 void PrimarySession::on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param){

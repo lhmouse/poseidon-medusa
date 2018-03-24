@@ -115,7 +115,7 @@ namespace {
 				break; }
 			default:
 				LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::ERR_NOT_FOUND, Poseidon::sslit("Unknown message"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::sslit("Unknown message"));
 			}
 		}
 
@@ -159,7 +159,7 @@ namespace {
 		for(AUTO(it, g_channels.begin()); it != g_channels.end(); ++it){
 			const AUTO(channel, it->second);
 			try {
-				channel->on_sync_closed(Protocol::ERR_SECONDARY_SERVER_CONNECTION_LOST, "Lost connection to secondary server");
+				channel->on_sync_closed(Protocol::error_secondary_server_connection_lost, "Lost connection to secondary server");
 			} catch(std::exception &e){
 				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
 			}
