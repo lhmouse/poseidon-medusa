@@ -120,7 +120,7 @@ protected:
 			DEBUG_THROW_ASSERT(tunnel_session);
 			Poseidon::Http::ResponseHeaders response_headers;
 			response_headers.version     = 10001;
-			response_headers.status_code = Poseidon::Http::ST_OK;
+			response_headers.status_code = Poseidon::Http::status_ok;
 			response_headers.reason      = "Connection Established";
 			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Keep-Alive");
 			if(!session->sync_get_response_token()){
@@ -154,7 +154,7 @@ protected:
 			} catch(std::exception &e){
 				LOG_MEDUSA2_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
 				sync_unlink_and_shutdown(true);
-				session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
+				session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::ERR_ORIGIN_INVALID_HTTP_RESPONSE, "The origin server sent no valid HTTP response");
 			}
 		}
 
@@ -172,14 +172,14 @@ protected:
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
-			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, err_code, err_msg.c_str());
+			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, err_code, err_msg.c_str());
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
 			if(is_content_till_eof()){
 				terminate_content();
 			}
-			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, (err_code == 0) ? static_cast<long>(Protocol::ERR_ORIGIN_EMPTY_RESPONSE) : err_code, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
+			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, (err_code == 0) ? static_cast<long>(Protocol::ERR_ORIGIN_EMPTY_RESPONSE) : err_code, (err_code == 0) ? "The origin server sent no data" : err_msg.c_str());
 		}
 	}
 
@@ -332,7 +332,7 @@ protected:
 			if(uri.at(0) == '/'){
 				// TODO: This could be useful.
 				LOG_MEDUSA2_INFO("Relative URI not handled: remote = ", session->get_remote_info(), ", uri = ", uri);
-				DEBUG_THROW(Poseidon::Http::Exception, Poseidon::Http::ST_FORBIDDEN);
+				DEBUG_THROW(Poseidon::Http::Exception, Poseidon::Http::status_forbidden);
 			}
 
 			LOG_MEDUSA2_INFO("New fetch request from ", session->get_remote_info());
@@ -341,7 +341,7 @@ protected:
 
 			const AUTO_REF(proxy_authorization_str, headers.get("Proxy-Authorization"));
 			const AUTO(result, Poseidon::Http::check_authentication_digest(session->m_auth_ctx, session->get_remote_info(), verb, proxy_authorization_str));
-			if(result.first != Poseidon::Http::AUTH_SUCCEEDED){
+			if(result.first != Poseidon::Http::auth_succeeded){
 				LOG_MEDUSA2_DEBUG("Authentication failed: ", proxy_authorization_str);
 				Poseidon::Http::throw_authentication_failure_digest(session->m_auth_ctx, true, session->get_remote_info(), result.first);
 			}
@@ -440,7 +440,7 @@ protected:
 			session->sync_pretty_shutdown(e.get_status_code(), Protocol::ERR_CONNECTION_CANCELLED, e.what(), e.get_headers());
 		} catch(std::exception &e){
 			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
-			session->sync_pretty_shutdown(Poseidon::Http::ST_BAD_GATEWAY, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
+			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::ERR_CONNECTION_CANCELLED, e.what(), VAL_INIT);
 		}
 	}
 };
@@ -682,8 +682,8 @@ void ProxySession::on_close(int err_code){
 void ProxySession::on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length){
 	PROFILE_ME;
 
-	m_tunnel = request_headers.verb == Poseidon::Http::V_CONNECT;
-	m_chunked = content_length == Poseidon::Http::ServerReader::CONTENT_CHUNKED;
+	m_tunnel = request_headers.verb == Poseidon::Http::verb_connect;
+	m_chunked = content_length == Poseidon::Http::ServerReader::content_length_chunked;
 
 	Poseidon::enqueue(boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_tunnel, m_chunked));
 }

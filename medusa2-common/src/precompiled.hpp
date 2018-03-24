@@ -32,12 +32,13 @@
 #  include <type_traits>
 #endif
 
-#define LOG_MEDUSA2(level_, ...)      LOG_MASK(0x4000 | (level_), __VA_ARGS__)
-#define LOG_MEDUSA2_FATAL(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_FATAL,   __VA_ARGS__)
-#define LOG_MEDUSA2_ERROR(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_ERROR,   __VA_ARGS__)
-#define LOG_MEDUSA2_WARNING(...)      LOG_MEDUSA2(::Poseidon::Logger::LV_WARNING, __VA_ARGS__)
-#define LOG_MEDUSA2_INFO(...)         LOG_MEDUSA2(::Poseidon::Logger::LV_INFO,    __VA_ARGS__)
-#define LOG_MEDUSA2_DEBUG(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_DEBUG,   __VA_ARGS__)
-#define LOG_MEDUSA2_TRACE(...)        LOG_MEDUSA2(::Poseidon::Logger::LV_TRACE,   __VA_ARGS__)
+#define LOG_MEDUSA2_EXPLICIT(level_, ...)      LOG_EXPLICIT(0x4000 | (level_), __VA_ARGS__)
+
+#define LOG_MEDUSA2_FATAL(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_fatal,   __VA_ARGS__)
+#define LOG_MEDUSA2_ERROR(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_error,   __VA_ARGS__)
+#define LOG_MEDUSA2_WARNING(...)      LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_warning, __VA_ARGS__)
+#define LOG_MEDUSA2_INFO(...)         LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_info,    __VA_ARGS__)
+#define LOG_MEDUSA2_DEBUG(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_debug,   __VA_ARGS__)
+#define LOG_MEDUSA2_TRACE(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_trace,   __VA_ARGS__)
 
 #endif
