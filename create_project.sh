@@ -17,7 +17,7 @@ _full_name="${_prefix}-${_canon_name}"
 if [[ -d "${_full_name}" ]]; then
 	echo "Project directory already exists:" >/dev/stderr
 	echo "  ${_full_name}" >/dev/stderr
-	echo "You have to remove it before proceed." >/dev/stderr
+	echo "You have to remove it before proceeding." >/dev/stderr
 	exit 1
 fi
 
