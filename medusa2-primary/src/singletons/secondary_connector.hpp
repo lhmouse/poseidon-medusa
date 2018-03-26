@@ -10,17 +10,17 @@
 namespace Medusa2 {
 namespace Primary {
 
-class SecondaryConnector {
+class Secondary_connector {
 public:
-	static boost::shared_ptr<SecondaryChannel> get_attached_channel(const Poseidon::Uuid &channel_uuid);
-	static void attach_channel(const boost::shared_ptr<SecondaryChannel> &channel);
+	static boost::shared_ptr<Secondary_channel> get_attached_channel(const Poseidon::Uuid &channel_uuid);
+	static void attach_channel(const boost::shared_ptr<Secondary_channel> &channel);
 
-	static const Poseidon::IpPort &get_remote_info();
-	static bool send(const Poseidon::Cbpp::MessageBase &msg);
+	static const Poseidon::Ip_port &get_remote_info();
+	static bool send(const Poseidon::Cbpp::Message_base &msg);
 	static bool shutdown(long err_code, const char *what) NOEXCEPT;
 
 private:
-	SecondaryConnector();
+	Secondary_connector();
 };
 
 }

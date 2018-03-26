@@ -11,23 +11,23 @@ namespace Medusa2 {
 namespace Secondary {
 
 namespace {
-	class PrimaryTcpServer : public Poseidon::TcpServerBase {
+	class Primary_tcp_server : public Poseidon::Tcp_server_base {
 	public:
-		PrimaryTcpServer(const std::string &bind, boost::uint16_t port, const std::string &cert, const std::string &pkey)
-			: Poseidon::TcpServerBase(Poseidon::IpPort(bind.c_str(), port), cert.c_str(), pkey.c_str())
+		Primary_tcp_server(const std::string &bind, boost::uint16_t port, const std::string &cert, const std::string &pkey)
+			: Poseidon::Tcp_server_base(Poseidon::Ip_port(bind.c_str(), port), cert.c_str(), pkey.c_str())
 		{
 			//
 		}
 
 	protected:
-		boost::shared_ptr<Poseidon::TcpSessionBase> on_client_connect(Poseidon::Move<Poseidon::UniqueFile> socket) OVERRIDE {
-			AUTO(session, boost::make_shared<PrimarySession>(STD_MOVE(socket)));
+		boost::shared_ptr<Poseidon::Tcp_session_base> on_client_connect(Poseidon::Move<Poseidon::Unique_file> socket) OVERRIDE {
+			AUTO(session, boost::make_shared<Primary_session>(STD_MOVE(socket)));
 			session->set_no_delay();
 			return STD_MOVE_IDN(session);
 		}
 	};
 
-	boost::weak_ptr<PrimaryTcpServer> g_weak_tcp_server;
+	boost::weak_ptr<Primary_tcp_server> g_weak_tcp_server;
 }
 
 MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
@@ -35,9 +35,9 @@ MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
 	const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
 	const AUTO(cert, get_config<std::string>("primary_server_certificate"));
 	const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
-	LOG_MEDUSA2_INFO("Secondary server: Creating PrimaryTcpServer: bind:port = ", bind, ":", port);
-	const AUTO(tcp_server, boost::make_shared<PrimaryTcpServer>(bind, port, cert, pkey));
-	Poseidon::EpollDaemon::add_socket(tcp_server, false);
+	LOG_MEDUSA2_INFO("Secondary server: Creating Primary_tcp_server: bind:port = ", bind, ":", port);
+	const AUTO(tcp_server, boost::make_shared<Primary_tcp_server>(bind, port, cert, pkey));
+	Poseidon::Epoll_daemon::add_socket(tcp_server, false);
 	handles.push(tcp_server);
 	g_weak_tcp_server = tcp_server;
 }

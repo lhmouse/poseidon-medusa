@@ -22,7 +22,7 @@ namespace {
 		DEBUG_THROW_ASSERT(err_code == 0);
 		return aes_key;
 	}
-	void aes_ctr_transform(Poseidon::StreamBuffer &b_out, Poseidon::StreamBuffer &b_in, const ::AES_KEY &aes_key){
+	void aes_ctr_transform(Poseidon::Stream_buffer &b_out, Poseidon::Stream_buffer &b_in, const ::AES_KEY &aes_key){
 		boost::array<unsigned char, 16> in, mask, out;
 		boost::uint32_t cnt = 0x12345678;
 		for(;;){
@@ -64,10 +64,10 @@ MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
 	g_message_lifetime = get_config<boost::uint64_t>("encryption_message_lifetime", 60000);
 }
 
-Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
+Poseidon::Stream_buffer encrypt(Poseidon::Stream_buffer plaintext){
 	PROFILE_ME;
 
-	Poseidon::StreamBuffer ciphertext;
+	Poseidon::Stream_buffer ciphertext;
 	const AUTO(utc_now, Poseidon::get_utc_time());
 
 	// USERNAME: 16 bytes
@@ -95,10 +95,10 @@ Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext){
 	aes_ctr_transform(ciphertext, plaintext, aes_key);
 	return ciphertext;
 }
-Poseidon::StreamBuffer decrypt(Poseidon::StreamBuffer ciphertext){
+Poseidon::Stream_buffer decrypt(Poseidon::Stream_buffer ciphertext){
 	PROFILE_ME;
 
-	Poseidon::StreamBuffer plaintext;
+	Poseidon::Stream_buffer plaintext;
 	const AUTO(utc_now, Poseidon::get_utc_time());
 
 	boost::array<unsigned char, 16> username;

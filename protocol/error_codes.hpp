@@ -4,7 +4,7 @@
 namespace Medusa2 {
 namespace Protocol {
 
-namespace ErrorCodes {
+namespace Error_codes {
 	enum {
 		error_success                           =    0,
 		error_internal_error                    =   -1,
@@ -35,7 +35,7 @@ namespace ErrorCodes {
 	};
 }
 
-using namespace ErrorCodes;
+using namespace Error_codes;
 
 }
 }

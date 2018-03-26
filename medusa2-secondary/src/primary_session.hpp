@@ -13,13 +13,13 @@
 namespace Medusa2 {
 namespace Secondary {
 
-class PrimarySession : public Poseidon::Cbpp::Session {
+class Primary_session : public Poseidon::Cbpp::Session {
 private:
-	class FetchClient;
+	class Fetch_client;
 	class Channel;
 
 private:
-	static void sync_timer_proc(const boost::weak_ptr<PrimarySession> &weak_session);
+	static void sync_timer_proc(const boost::weak_ptr<Primary_session> &weak_session);
 
 private:
 	const Poseidon::Uuid m_session_uuid;
@@ -29,22 +29,22 @@ private:
 	bool m_authenticated;
 
 public:
-	explicit PrimarySession(Poseidon::Move<Poseidon::UniqueFile> socket);
-	~PrimarySession();
+	explicit Primary_session(Poseidon::Move<Poseidon::Unique_file> socket);
+	~Primary_session();
 
 protected:
 	void on_sync_timer();
-	void on_sync_data_message(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
-	void on_sync_control_message(Poseidon::Cbpp::StatusCode status_code, Poseidon::StreamBuffer param) OVERRIDE;
+	void on_sync_data_message(boost::uint16_t message_id, Poseidon::Stream_buffer payload) OVERRIDE;
+	void on_sync_control_message(Poseidon::Cbpp::Status_code status_code, Poseidon::Stream_buffer param) OVERRIDE;
 
 public:
 	const Poseidon::Uuid &get_session_uuid() const NOEXCEPT {
 		return m_session_uuid;
 	}
 
-	bool send(boost::uint16_t message_id, Poseidon::StreamBuffer payload) OVERRIDE;
+	bool send(boost::uint16_t message_id, Poseidon::Stream_buffer payload) OVERRIDE;
 
-	bool send(const Poseidon::Cbpp::MessageBase &msg);
+	bool send(const Poseidon::Cbpp::Message_base &msg);
 };
 
 }

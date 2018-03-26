@@ -9,12 +9,12 @@
 namespace Medusa2 {
 namespace Secondary {
 
-class PrimaryServer {
+class Primary_server {
 public:
 	//
 
 private:
-	PrimaryServer();
+	Primary_server();
 };
 
 }

@@ -12,7 +12,7 @@
 namespace Medusa2 {
 namespace Primary {
 
-class SecondaryChannel : NONCOPYABLE, public Poseidon::VirtualSharedFromThis {
+class Secondary_channel : NONCOPYABLE, public Poseidon::Virtual_shared_from_this {
 private:
 	const Poseidon::Uuid m_channel_uuid;
 
@@ -24,13 +24,13 @@ private:
 	volatile bool m_shutdown;
 
 public:
-	SecondaryChannel(std::string host, unsigned port, bool use_ssl, bool no_delay);
-	~SecondaryChannel();
+	Secondary_channel(std::string host, unsigned port, bool use_ssl, bool no_delay);
+	~Secondary_channel();
 
 public:
 	virtual void on_sync_opened() = 0;
 	virtual void on_sync_established() = 0;
-	virtual void on_sync_received(Poseidon::StreamBuffer data) = 0;
+	virtual void on_sync_received(Poseidon::Stream_buffer data) = 0;
 	virtual void on_sync_closed(long err_code, std::string err_msg) = 0;
 
 public:
@@ -54,7 +54,7 @@ public:
 	bool shutdown(bool no_linger) NOEXCEPT;
 	void force_shutdown();
 
-	bool send(Poseidon::StreamBuffer data);
+	bool send(Poseidon::Stream_buffer data);
 };
 
 }

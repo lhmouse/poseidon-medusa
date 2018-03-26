@@ -9,12 +9,12 @@
 namespace Medusa2 {
 namespace Primary {
 
-class ProxyServer {
+class Proxy_server {
 public:
 	//
 
 private:
-	ProxyServer();
+	Proxy_server();
 };
 
 }

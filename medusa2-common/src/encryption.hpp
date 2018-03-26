@@ -12,8 +12,8 @@
 namespace Medusa2 {
 namespace Common {
 
-extern Poseidon::StreamBuffer encrypt(Poseidon::StreamBuffer plaintext);
-extern Poseidon::StreamBuffer decrypt(Poseidon::StreamBuffer ciphertext);
+extern Poseidon::Stream_buffer encrypt(Poseidon::Stream_buffer plaintext);
+extern Poseidon::Stream_buffer decrypt(Poseidon::Stream_buffer ciphertext);
 
 }
 }

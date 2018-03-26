@@ -11,21 +11,21 @@
 namespace Medusa2 {
 namespace Primary {
 
-SecondaryChannel::SecondaryChannel(std::string host, unsigned port, bool use_ssl, bool no_delay)
+Secondary_channel::Secondary_channel(std::string host, unsigned port, bool use_ssl, bool no_delay)
 	: m_channel_uuid(Poseidon::Uuid::random())
 	, m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 	, m_shutdown(false)
 {
-	LOG_MEDUSA2_DEBUG("SecondaryChannel constructor: channel_uuid = ", get_channel_uuid());
+	LOG_MEDUSA2_DEBUG("Secondary_channel constructor: channel_uuid = ", get_channel_uuid());
 }
-SecondaryChannel::~SecondaryChannel(){
-	LOG_MEDUSA2_DEBUG("SecondaryChannel destructor: channel_uuid = ", get_channel_uuid());
+Secondary_channel::~Secondary_channel(){
+	LOG_MEDUSA2_DEBUG("Secondary_channel destructor: channel_uuid = ", get_channel_uuid());
 }
 
-bool SecondaryChannel::has_been_shutdown() const NOEXCEPT {
+bool Secondary_channel::has_been_shutdown() const NOEXCEPT {
 	return Poseidon::atomic_load(m_shutdown, Poseidon::memory_order_acquire);
 }
-bool SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
+bool Secondary_channel::shutdown(bool no_linger) NOEXCEPT {
 	PROFILE_ME;
 
 	bool was_shutdown = Poseidon::atomic_load(m_shutdown, Poseidon::memory_order_acquire);
@@ -39,16 +39,16 @@ bool SecondaryChannel::shutdown(bool no_linger) NOEXCEPT {
 		Protocol::PS_Shutdown msg;
 		msg.channel_uuid = get_channel_uuid();
 		msg.no_linger    = no_linger;
-		SecondaryConnector::send(msg);
+		Secondary_connector::send(msg);
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		SecondaryConnector::shutdown(Protocol::error_internal_error, e.what());
+		Secondary_connector::shutdown(Protocol::error_internal_error, e.what());
 		return false;
 	}
 	return true;
 }
 
-bool SecondaryChannel::send(Poseidon::StreamBuffer data){
+bool Secondary_channel::send(Poseidon::Stream_buffer data){
 	PROFILE_ME;
 
 	if(has_been_shutdown()){
@@ -61,10 +61,10 @@ bool SecondaryChannel::send(Poseidon::StreamBuffer data){
 		msg.channel_uuid = get_channel_uuid();
 		do {
 			msg.segment = data.cut_off(fragmentation_size);
-		} while(!msg.segment.empty() && SecondaryConnector::send(msg));
+		} while(!msg.segment.empty() && Secondary_connector::send(msg));
 	} catch(std::exception &e){
 		LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
-		SecondaryConnector::shutdown(Protocol::error_internal_error, e.what());
+		Secondary_connector::shutdown(Protocol::error_internal_error, e.what());
 		return false;
 	}
 	return true;

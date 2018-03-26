@@ -11,21 +11,21 @@
 namespace Medusa2 {
 namespace Primary {
 
-class ProxySession : public Poseidon::Http::LowLevelSession {
+class Proxy_session : public Poseidon::Http::Low_level_session {
 private:
-	class TunnelSession;
-	class DeafSession;
+	class Tunnel_session;
+	class Deaf_session;
 	class Channel;
 
-	class SyncJobBase;
-	class RequestHeadersJob;
-	class RequestEntityJob;
-	class RequestEndJob;
-	class ReadHupJob;
-	class CloseJob;
+	class Sync_job_base;
+	class Request_headers_job;
+	class Request_entity_job;
+	class Request_end_job;
+	class Read_hup_job;
+	class Close_job;
 
 private:
-	const boost::shared_ptr<const Poseidon::Http::AuthenticationContext> m_auth_ctx;
+	const boost::shared_ptr<const Poseidon::Http::Authentication_context> m_auth_ctx;
 
 	// low level
 	bool m_tunnel;
@@ -36,21 +36,21 @@ private:
 	bool m_response_token;
 
 public:
-	ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx);
-	~ProxySession();
+	Proxy_session(Poseidon::Move<Poseidon::Unique_file> socket, boost::shared_ptr<const Poseidon::Http::Authentication_context> auth_ctx);
+	~Proxy_session();
 
 private:
 	bool sync_get_response_token() NOEXCEPT;
-	void sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::OptionalMap &headers = Poseidon::OptionalMap()) NOEXCEPT;
-	void low_level_enqueue_tunnel_data(Poseidon::StreamBuffer data);
+	void sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Optional_map &headers = Poseidon::Optional_map()) NOEXCEPT;
+	void low_level_enqueue_tunnel_data(Poseidon::Stream_buffer data);
 
 protected:
 	void on_read_hup() OVERRIDE;
 	void on_close(int err_code) OVERRIDE;
 
-	void on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length) OVERRIDE;
-	void on_low_level_request_entity(boost::uint64_t entity_offset, Poseidon::StreamBuffer entity) OVERRIDE;
-	boost::shared_ptr<Poseidon::Http::UpgradedSessionBase> on_low_level_request_end(boost::uint64_t content_length, Poseidon::OptionalMap headers) OVERRIDE;
+	void on_low_level_request_headers(Poseidon::Http::Request_headers request_headers, boost::uint64_t content_length) OVERRIDE;
+	void on_low_level_request_entity(boost::uint64_t entity_offset, Poseidon::Stream_buffer entity) OVERRIDE;
+	boost::shared_ptr<Poseidon::Http::Upgraded_session_base> on_low_level_request_end(boost::uint64_t content_length, Poseidon::Optional_map headers) OVERRIDE;
 };
 
 }

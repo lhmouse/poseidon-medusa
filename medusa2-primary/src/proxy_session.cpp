@@ -17,28 +17,28 @@
 namespace Medusa2 {
 namespace Primary {
 
-class ProxySession::TunnelSession : public Poseidon::Http::UpgradedSessionBase {
+class Proxy_session::Tunnel_session : public Poseidon::Http::Upgraded_session_base {
 public:
-	explicit TunnelSession(const boost::shared_ptr<ProxySession> &session)
-		: Poseidon::Http::UpgradedSessionBase(session)
+	explicit Tunnel_session(const boost::shared_ptr<Proxy_session> &session)
+		: Poseidon::Http::Upgraded_session_base(session)
 	{
 		//
 	}
 
 protected:
 	void on_connect() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("TunnelSession::on_connect()");
+		LOG_MEDUSA2_DEBUG("Tunnel_session::on_connect()");
 	}
 	void on_read_hup() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("TunnelSession::on_read_hup()");
+		LOG_MEDUSA2_DEBUG("Tunnel_session::on_read_hup()");
 	}
 	void on_close(int err_code) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("TunnelSession::on_close(): err_code = ", err_code);
+		LOG_MEDUSA2_DEBUG("Tunnel_session::on_close(): err_code = ", err_code);
 	}
-	void on_receive(Poseidon::StreamBuffer data) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("TunnelSession::on_receive(): data.size() = ", data.size());
+	void on_receive(Poseidon::Stream_buffer data) OVERRIDE {
+		LOG_MEDUSA2_DEBUG("Tunnel_session::on_receive(): data.size() = ", data.size());
 
-		const AUTO(session, boost::dynamic_pointer_cast<ProxySession>(get_parent()));
+		const AUTO(session, boost::dynamic_pointer_cast<Proxy_session>(get_parent()));
 		if(!session){
 			return;
 		}
@@ -47,38 +47,38 @@ protected:
 	}
 };
 
-class ProxySession::DeafSession : public Poseidon::Http::UpgradedSessionBase {
+class Proxy_session::Deaf_session : public Poseidon::Http::Upgraded_session_base {
 public:
-	explicit DeafSession(const boost::shared_ptr<ProxySession> &session)
-		: Poseidon::Http::UpgradedSessionBase(session)
+	explicit Deaf_session(const boost::shared_ptr<Proxy_session> &session)
+		: Poseidon::Http::Upgraded_session_base(session)
 	{
 		//
 	}
 
 protected:
 	void on_connect() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("DeafSession::on_connect()");
+		LOG_MEDUSA2_DEBUG("Deaf_session::on_connect()");
 	}
 	void on_read_hup() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("DeafSession::on_read_hup()");
+		LOG_MEDUSA2_DEBUG("Deaf_session::on_read_hup()");
 	}
 	void on_close(int err_code) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("DeafSession::on_close(): err_code = ", err_code);
+		LOG_MEDUSA2_DEBUG("Deaf_session::on_close(): err_code = ", err_code);
 	}
-	void on_receive(Poseidon::StreamBuffer data) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("DeafSession::on_receive(): data.size() = ", data.size());
+	void on_receive(Poseidon::Stream_buffer data) OVERRIDE {
+		LOG_MEDUSA2_DEBUG("Deaf_session::on_receive(): data.size() = ", data.size());
 	}
 };
 
-class ProxySession::Channel : public SecondaryChannel, public Poseidon::Http::ClientWriter, public Poseidon::Http::ClientReader {
+class Proxy_session::Channel : public Secondary_channel, public Poseidon::Http::Client_writer, public Poseidon::Http::Client_reader {
 private:
-	boost::weak_ptr<ProxySession> m_weak_session;
+	boost::weak_ptr<Proxy_session> m_weak_session;
 	bool m_tunnel;
 	bool m_chunked;
 
 public:
-	Channel(const boost::shared_ptr<ProxySession> &session, std::string host, unsigned port, bool use_ssl, bool no_delay, bool tunnel)
-		: SecondaryChannel(STD_MOVE(host), port, use_ssl, no_delay)
+	Channel(const boost::shared_ptr<Proxy_session> &session, std::string host, unsigned port, bool use_ssl, bool no_delay, bool tunnel)
+		: Secondary_channel(STD_MOVE(host), port, use_ssl, no_delay)
 		, m_weak_session(session), m_tunnel(tunnel), m_chunked(false)
 	{
 		//
@@ -101,7 +101,7 @@ private:
 	}
 
 protected:
-	// SecondaryChannel
+	// Secondary_channel
 	void on_sync_opened() OVERRIDE {
 		LOG_MEDUSA2_DEBUG("Channel::on_sync_opened()");
 	}
@@ -116,9 +116,9 @@ protected:
 		}
 
 		if(m_tunnel){
-			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
+			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
-			Poseidon::Http::ResponseHeaders response_headers;
+			Poseidon::Http::Response_headers response_headers;
 			response_headers.version     = 10001;
 			response_headers.status_code = Poseidon::Http::status_ok;
 			response_headers.reason      = "Connection Established";
@@ -132,7 +132,7 @@ protected:
 			// Do nothing.
 		}
 	}
-	void on_sync_received(Poseidon::StreamBuffer data) OVERRIDE {
+	void on_sync_received(Poseidon::Stream_buffer data) OVERRIDE {
 		LOG_MEDUSA2_DEBUG("Channel::on_sync_received(): data.size() = ", data.size());
 
 		const AUTO(session, m_weak_session.lock());
@@ -143,11 +143,11 @@ protected:
 		}
 
 		if(m_tunnel){
-			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
+			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
 			tunnel_session->send(STD_MOVE(data));
 		} else {
-			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
+			const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
 			try {
 				put_encoded_data(STD_MOVE(data));
@@ -170,11 +170,11 @@ protected:
 		}
 
 		if(m_tunnel){
-			const AUTO(tunnel_session, boost::dynamic_pointer_cast<TunnelSession>(session->get_upgraded_session()));
+			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(tunnel_session);
 			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, err_code, err_msg.c_str());
 		} else {
-			const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
+			const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
 			DEBUG_THROW_ASSERT(deaf_session);
 			if(is_content_till_eof()){
 				terminate_content();
@@ -183,15 +183,15 @@ protected:
 		}
 	}
 
-	// ClientWriter
-	long on_encoded_data_avail(Poseidon::StreamBuffer encoded) OVERRIDE {
+	// Client_writer
+	long on_encoded_data_avail(Poseidon::Stream_buffer encoded) OVERRIDE {
 		PROFILE_ME;
 
 		return send(STD_MOVE(encoded));
 	}
 
-	// ClientReader
-	void on_response_headers(Poseidon::Http::ResponseHeaders response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
+	// Client_reader
+	void on_response_headers(Poseidon::Http::Response_headers response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
 		PROFILE_ME;
 
 		m_chunked = response_headers.status_code / 100 >= 2;
@@ -202,7 +202,7 @@ protected:
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
 
-		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
+		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(!session->sync_get_response_token()){
 			sync_unlink_and_shutdown(true);
@@ -223,7 +223,7 @@ protected:
 			session->send(STD_MOVE(response_headers));
 		}
 	}
-	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity) OVERRIDE {
+	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::Stream_buffer entity) OVERRIDE {
 		PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
@@ -232,7 +232,7 @@ protected:
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
 
-		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
+		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
 			if(!entity.empty()){
@@ -242,7 +242,7 @@ protected:
 			// Do nothing.
 		}
 	}
-	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers) OVERRIDE {
+	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::Optional_map headers) OVERRIDE {
 		PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
@@ -251,7 +251,7 @@ protected:
 		}
 		DEBUG_THROW_ASSERT(!m_tunnel);
 
-		const AUTO(deaf_session, boost::dynamic_pointer_cast<DeafSession>(session->get_upgraded_session()));
+		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
 		DEBUG_THROW_ASSERT(deaf_session);
 		if(m_chunked){
 			session->send_chunked_trailer(STD_MOVE(headers));
@@ -263,13 +263,13 @@ protected:
 	}
 };
 
-class ProxySession::SyncJobBase : public Poseidon::JobBase {
+class Proxy_session::Sync_job_base : public Poseidon::Job_base {
 private:
-	const Poseidon::SocketBase::DelayedShutdownGuard m_guard;
-	const boost::weak_ptr<ProxySession> m_weak_session;
+	const Poseidon::Socket_base::Delayed_shutdown_guard m_guard;
+	const boost::weak_ptr<Proxy_session> m_weak_session;
 
 public:
-	explicit SyncJobBase(const boost::shared_ptr<ProxySession> &session)
+	explicit Sync_job_base(const boost::shared_ptr<Proxy_session> &session)
 		: m_guard(session), m_weak_session(session)
 	{
 		//
@@ -295,25 +295,25 @@ protected:
 		}
 	}
 
-	virtual void really_perform(const boost::shared_ptr<ProxySession> &session) = 0;
+	virtual void really_perform(const boost::shared_ptr<Proxy_session> &session) = 0;
 };
 
-class ProxySession::RequestHeadersJob : public ProxySession::SyncJobBase {
+class Proxy_session::Request_headers_job : public Proxy_session::Sync_job_base {
 private:
-	Poseidon::Http::RequestHeaders m_request_headers;
+	Poseidon::Http::Request_headers m_request_headers;
 	bool m_tunnel;
 	bool m_chunked;
 
 public:
-	RequestHeadersJob(const boost::shared_ptr<ProxySession> &session, Poseidon::Http::RequestHeaders request_headers, bool tunnel, bool chunked)
-		: SyncJobBase(session)
+	Request_headers_job(const boost::shared_ptr<Proxy_session> &session, Poseidon::Http::Request_headers request_headers, bool tunnel, bool chunked)
+		: Sync_job_base(session)
 		, m_request_headers(STD_MOVE(request_headers)), m_tunnel(tunnel), m_chunked(chunked)
 	{
 		//
 	}
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
 		PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
@@ -415,13 +415,13 @@ protected:
 			}
 
 			channel = boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay, m_tunnel);
-			SecondaryConnector::attach_channel(channel);
+			Secondary_connector::attach_channel(channel);
 			session->m_weak_channel = channel;
 
 			if(m_tunnel){
 				// Do nothing.
 			} else {
-				Poseidon::Http::RequestHeaders rewritten_headers;
+				Poseidon::Http::Request_headers rewritten_headers;
 				rewritten_headers.verb    = verb;
 				rewritten_headers.uri     = STD_MOVE(uri);
 				rewritten_headers.version = 10001;
@@ -445,21 +445,21 @@ protected:
 	}
 };
 
-class ProxySession::RequestEntityJob : public ProxySession::SyncJobBase {
+class Proxy_session::Request_entity_job : public Proxy_session::Sync_job_base {
 private:
 	bool m_chunked;
-	Poseidon::StreamBuffer m_entity;
+	Poseidon::Stream_buffer m_entity;
 
 public:
-	RequestEntityJob(const boost::shared_ptr<ProxySession> &session, bool chunked, Poseidon::StreamBuffer entity)
-		: SyncJobBase(session)
+	Request_entity_job(const boost::shared_ptr<Proxy_session> &session, bool chunked, Poseidon::Stream_buffer entity)
+		: Sync_job_base(session)
 		, m_chunked(chunked), m_entity(STD_MOVE(entity))
 	{
 		//
 	}
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
 		PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
@@ -479,21 +479,21 @@ protected:
 	}
 };
 
-class ProxySession::RequestEndJob : public ProxySession::SyncJobBase {
+class Proxy_session::Request_end_job : public Proxy_session::Sync_job_base {
 private:
 	bool m_chunked;
-	Poseidon::OptionalMap m_headers;
+	Poseidon::Optional_map m_headers;
 
 public:
-	RequestEndJob(const boost::shared_ptr<ProxySession> &session, bool chunked, Poseidon::OptionalMap headers)
-		: SyncJobBase(session)
+	Request_end_job(const boost::shared_ptr<Proxy_session> &session, bool chunked, Poseidon::Optional_map headers)
+		: Sync_job_base(session)
 		, m_chunked(chunked), m_headers(STD_MOVE(headers))
 	{
 		//
 	}
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
 		PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
@@ -511,20 +511,20 @@ protected:
 	}
 };
 
-class ProxySession::ReadHupJob : public ProxySession::SyncJobBase {
+class Proxy_session::Read_hup_job : public Proxy_session::Sync_job_base {
 private:
-	const boost::shared_ptr<ProxySession> m_session;
+	const boost::shared_ptr<Proxy_session> m_session;
 
 public:
-	explicit ReadHupJob(const boost::shared_ptr<ProxySession> &session)
-		: SyncJobBase(session)
+	explicit Read_hup_job(const boost::shared_ptr<Proxy_session> &session)
+		: Sync_job_base(session)
 		, m_session(session)
 	{
 		//
 	}
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
 		PROFILE_ME;
 
 		session->shutdown_write();
@@ -536,21 +536,21 @@ protected:
 	}
 };
 
-class ProxySession::CloseJob : public ProxySession::SyncJobBase {
+class Proxy_session::Close_job : public Proxy_session::Sync_job_base {
 private:
-	const boost::shared_ptr<ProxySession> m_session;
+	const boost::shared_ptr<Proxy_session> m_session;
 	const int m_err_code;
 
 public:
-	CloseJob(const boost::shared_ptr<ProxySession> &session, int err_code)
-		: SyncJobBase(session)
+	Close_job(const boost::shared_ptr<Proxy_session> &session, int err_code)
+		: Sync_job_base(session)
 		, m_session(session), m_err_code(err_code)
 	{
 		//
 	}
 
 protected:
-	void really_perform(const boost::shared_ptr<ProxySession> &session) FINAL {
+	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
 		PROFILE_ME;
 
 		const AUTO(channel, session->m_weak_channel.lock());
@@ -561,16 +561,16 @@ protected:
 	}
 };
 
-ProxySession::ProxySession(Poseidon::Move<Poseidon::UniqueFile> socket, boost::shared_ptr<const Poseidon::Http::AuthenticationContext> auth_ctx)
-	: Poseidon::Http::LowLevelSession(STD_MOVE(socket))
+Proxy_session::Proxy_session(Poseidon::Move<Poseidon::Unique_file> socket, boost::shared_ptr<const Poseidon::Http::Authentication_context> auth_ctx)
+	: Poseidon::Http::Low_level_session(STD_MOVE(socket))
 	, m_auth_ctx(STD_MOVE(auth_ctx))
 	, m_tunnel(false), m_chunked(false)
 	, m_weak_channel(), m_response_token(false)
 {
-	LOG_MEDUSA2_INFO("ProxySession constructor: remote = ", get_remote_info());
+	LOG_MEDUSA2_INFO("Proxy_session constructor: remote = ", get_remote_info());
 }
-ProxySession::~ProxySession(){
-	LOG_MEDUSA2_INFO("ProxySession destructor: remote = ", get_remote_info());
+Proxy_session::~Proxy_session(){
+	LOG_MEDUSA2_INFO("Proxy_session destructor: remote = ", get_remote_info());
 
 	const AUTO(channel, m_weak_channel.lock());
 	if(channel){
@@ -579,7 +579,7 @@ ProxySession::~ProxySession(){
 	}
 }
 
-bool ProxySession::sync_get_response_token() NOEXCEPT {
+bool Proxy_session::sync_get_response_token() NOEXCEPT {
 	PROFILE_ME;
 
 	if(m_response_token){
@@ -588,12 +588,12 @@ bool ProxySession::sync_get_response_token() NOEXCEPT {
 	m_response_token = true;
 	return true;
 }
-void ProxySession::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::OptionalMap &headers) NOEXCEPT
+void Proxy_session::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Optional_map &headers) NOEXCEPT
 try {
 	PROFILE_ME;
 
 	if(sync_get_response_token()){
-		Poseidon::Http::ResponseHeaders response_headers;
+		Poseidon::Http::Response_headers response_headers;
 		response_headers.version = 10001;
 		response_headers.status_code = status_code;
 		response_headers.reason = Poseidon::Http::get_status_code_desc(status_code).desc_short;
@@ -650,7 +650,7 @@ try {
 		entity_os <<    "</p>"
 		          <<  "</body>"
 		          <<"</html>";
-		Poseidon::Http::ServerWriter::put_response(STD_MOVE(response_headers), STD_MOVE(entity_os.get_buffer()), true);
+		Poseidon::Http::Server_writer::put_response(STD_MOVE(response_headers), STD_MOVE(entity_os.get_buffer()), true);
 	}
 	shutdown_read();
 	shutdown_write();
@@ -658,52 +658,52 @@ try {
 	LOG_MEDUSA2_ERROR("std::exception remote = ", get_remote_info(), ", thrown: what = ", e.what());
 	force_shutdown();
 }
-void ProxySession::low_level_enqueue_tunnel_data(Poseidon::StreamBuffer data){
+void Proxy_session::low_level_enqueue_tunnel_data(Poseidon::Stream_buffer data){
 	PROFILE_ME;
 
-	Poseidon::enqueue(boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), false, STD_MOVE(data)));
+	Poseidon::enqueue(boost::make_shared<Request_entity_job>(virtual_shared_from_this<Proxy_session>(), false, STD_MOVE(data)));
 }
 
-void ProxySession::on_read_hup(){
+void Proxy_session::on_read_hup(){
 	PROFILE_ME;
 
-	Poseidon::enqueue(boost::make_shared<ReadHupJob>(virtual_shared_from_this<ProxySession>()));
+	Poseidon::enqueue(boost::make_shared<Read_hup_job>(virtual_shared_from_this<Proxy_session>()));
 
-	Poseidon::Http::LowLevelSession::on_read_hup();
+	Poseidon::Http::Low_level_session::on_read_hup();
 }
-void ProxySession::on_close(int err_code){
+void Proxy_session::on_close(int err_code){
 	PROFILE_ME;
 
-	Poseidon::enqueue(boost::make_shared<CloseJob>(virtual_shared_from_this<ProxySession>(), err_code));
+	Poseidon::enqueue(boost::make_shared<Close_job>(virtual_shared_from_this<Proxy_session>(), err_code));
 
-	Poseidon::Http::LowLevelSession::on_close(err_code);
+	Poseidon::Http::Low_level_session::on_close(err_code);
 }
 
-void ProxySession::on_low_level_request_headers(Poseidon::Http::RequestHeaders request_headers, boost::uint64_t content_length){
+void Proxy_session::on_low_level_request_headers(Poseidon::Http::Request_headers request_headers, boost::uint64_t content_length){
 	PROFILE_ME;
 
 	m_tunnel = request_headers.verb == Poseidon::Http::verb_connect;
-	m_chunked = content_length == Poseidon::Http::ServerReader::content_length_chunked;
+	m_chunked = content_length == Poseidon::Http::Server_reader::content_length_chunked;
 
-	Poseidon::enqueue(boost::make_shared<RequestHeadersJob>(virtual_shared_from_this<ProxySession>(), STD_MOVE(request_headers), m_tunnel, m_chunked));
+	Poseidon::enqueue(boost::make_shared<Request_headers_job>(virtual_shared_from_this<Proxy_session>(), STD_MOVE(request_headers), m_tunnel, m_chunked));
 }
-void ProxySession::on_low_level_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::StreamBuffer entity){
+void Proxy_session::on_low_level_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::Stream_buffer entity){
 	PROFILE_ME;
 
 	if(m_tunnel){
 		// Do nothing.
 	} else {
-		Poseidon::enqueue(boost::make_shared<RequestEntityJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(entity)));
+		Poseidon::enqueue(boost::make_shared<Request_entity_job>(virtual_shared_from_this<Proxy_session>(), m_chunked, STD_MOVE(entity)));
 	}
 }
-boost::shared_ptr<Poseidon::Http::UpgradedSessionBase> ProxySession::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::OptionalMap headers){
+boost::shared_ptr<Poseidon::Http::Upgraded_session_base> Proxy_session::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::Optional_map headers){
 	PROFILE_ME;
 
 	if(m_tunnel){
-		return boost::make_shared<TunnelSession>(virtual_shared_from_this<ProxySession>());
+		return boost::make_shared<Tunnel_session>(virtual_shared_from_this<Proxy_session>());
 	} else {
-		Poseidon::enqueue(boost::make_shared<RequestEndJob>(virtual_shared_from_this<ProxySession>(), m_chunked, STD_MOVE(headers)));
-		return boost::make_shared<DeafSession>(virtual_shared_from_this<ProxySession>());
+		Poseidon::enqueue(boost::make_shared<Request_end_job>(virtual_shared_from_this<Proxy_session>(), m_chunked, STD_MOVE(headers)));
+		return boost::make_shared<Deaf_session>(virtual_shared_from_this<Proxy_session>());
 	}
 }
 
