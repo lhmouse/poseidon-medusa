@@ -35,4 +35,8 @@
 #define LOG_MEDUSA2_DEBUG(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_debug,   __VA_ARGS__)
 #define LOG_MEDUSA2_TRACE(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_trace,   __VA_ARGS__)
 
+namespace Medusa2 {
+	//
+}
+
 #endif
