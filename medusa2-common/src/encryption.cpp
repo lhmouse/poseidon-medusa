@@ -52,14 +52,14 @@ MODULE_RAII_PRIORITY(, INIT_PRIORITY_ESSENTIAL){
 		const AUTO_REF(str, *it);
 		LOG_MEDUSA2_TRACE("> Authorized user: ", str);
 		const AUTO(pos, str.find(':'));
-		DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::sslit("Invalid encryption_authorized_user (Hint: encryption_authorized_user = USERNAME:PASSWORD)"));
-		DEBUG_THROW_UNLESS(pos != 0, Poseidon::Exception, Poseidon::sslit("Username must not be empty"));
-		DEBUG_THROW_UNLESS(pos <= 16, Poseidon::Exception, Poseidon::sslit("Username must contain no more than 16 bytes"));
+		DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::Rcnts::view("Invalid encryption_authorized_user (Hint: encryption_authorized_user = USERNAME:PASSWORD)"));
+		DEBUG_THROW_UNLESS(pos != 0, Poseidon::Exception, Poseidon::Rcnts::view("Username must not be empty"));
+		DEBUG_THROW_UNLESS(pos <= 16, Poseidon::Exception, Poseidon::Rcnts::view("Username must contain no more than 16 bytes"));
 		boost::array<unsigned char, 16> username;
 		std::memset(username.data(), 0, 16);
 		std::memcpy(username.data(), str.data(), pos);
 		const AUTO(pair, g_authorized_users.emplace(username, str));
-		DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::sslit("Duplicate username"));
+		DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::Rcnts::view("Duplicate username"));
 	}
 	g_message_lifetime = get_config<boost::uint64_t>("encryption_message_lifetime", 60000);
 }
@@ -103,31 +103,31 @@ Poseidon::Stream_buffer decrypt(Poseidon::Stream_buffer ciphertext){
 
 	boost::array<unsigned char, 16> username;
 	// USERNAME: 16 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(&username, 16) == 16, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::sslit("End of stream encountered, expecting USERNAME"));
+	DEBUG_THROW_UNLESS(ciphertext.get(&username, 16) == 16, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::Rcnts::view("End of stream encountered, expecting USERNAME"));
 	const AUTO(user_it, g_authorized_users.find(username));
-	DEBUG_THROW_UNLESS(user_it != g_authorized_users.end(), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::sslit("User not found"));
+	DEBUG_THROW_UNLESS(user_it != g_authorized_users.end(), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::Rcnts::view("User not found"));
 	boost::uint64_t temp64;
 	// TIMESTAMP: 8 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(&temp64, 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::sslit("End of stream encountered, expecting TIMESTAMP"));
+	DEBUG_THROW_UNLESS(ciphertext.get(&temp64, 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::Rcnts::view("End of stream encountered, expecting TIMESTAMP"));
 	const boost::uint64_t timestamp = Poseidon::load_be(temp64);
-	DEBUG_THROW_UNLESS(timestamp >= Poseidon::saturated_sub(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::sslit("Request expired"));
-	DEBUG_THROW_UNLESS(timestamp < Poseidon::saturated_add(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::sslit("Timestamp too far in the future"));
+	DEBUG_THROW_UNLESS(timestamp >= Poseidon::saturated_sub(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::Rcnts::view("Request expired"));
+	DEBUG_THROW_UNLESS(timestamp < Poseidon::saturated_add(utc_now, g_message_lifetime), Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::Rcnts::view("Timestamp too far in the future"));
 	// KEY_CHECKSUM: 8 bytes
 	boost::array<unsigned char, 8> checksum;
-	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::sslit("End of stream encountered, expecting KEY_CHECKSUM"));
+	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::Rcnts::view("End of stream encountered, expecting KEY_CHECKSUM"));
 	Poseidon::Sha256_ostream sha256_os;
 	const std::size_t ciphertext_length = ciphertext.size() - 8; // Remember to drop the DATA_CHECKSUM.
 	sha256_os <<timestamp <<'#' <<user_it->second <<'#' <<ciphertext_length <<'#';
 	AUTO(sha256, sha256_os.finalize());
-	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::sslit("Incorrect key (checksum mismatch)"));
+	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::error_authorization_failure, Poseidon::Rcnts::view("Incorrect key (checksum mismatch)"));
 	const AUTO(aes_key, aes_key_init_192(sha256.data() + 8));
 	// DATA_CHECKSUM: 8 bytes
-	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::sslit("End of stream encountered, expecting DATA_CHECKSUM"));
+	DEBUG_THROW_UNLESS(ciphertext.get(checksum.data(), 8) == 8, Poseidon::Cbpp::Exception, Protocol::error_end_of_stream, Poseidon::Rcnts::view("End of stream encountered, expecting DATA_CHECKSUM"));
 	// DATA: ? bytes
 	aes_ctr_transform(plaintext, ciphertext, aes_key);
 	sha256_os <<timestamp <<'#' <<plaintext <<'#';
 	sha256 = sha256_os.finalize();
-	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::error_bad_request, Poseidon::sslit("Request not recognized (checksum mismatch)"));
+	DEBUG_THROW_UNLESS(std::memcmp(checksum.data(), sha256.data(), 8) == 0, Poseidon::Cbpp::Exception, Protocol::error_bad_request, Poseidon::Rcnts::view("Request not recognized (checksum mismatch)"));
 	return plaintext;
 }
 

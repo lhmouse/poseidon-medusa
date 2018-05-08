@@ -171,7 +171,7 @@ public:
 		if(!fetch_client){
 			if(m_shutdown_read){
 				LOG_MEDUSA2_DEBUG("Connection was cancelled: host:port = ", m_host, ":", m_port);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_cancelled, Poseidon::sslit("Connection was cancelled"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_cancelled, Poseidon::Rcnts::view("Connection was cancelled"));
 			}
 
 			// Perform DNS lookup.
@@ -188,11 +188,11 @@ public:
 				sock_addr = m_promised_sock_addr->get();
 			} catch(std::exception &e){
 				LOG_MEDUSA2_DEBUG("DNS failure: what = ", e.what());
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_dns_failure, Poseidon::Shared_nts(e.what()));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_dns_failure, Poseidon::Rcnts(e.what()));
 			}
 			if(sock_addr.is_private()){
 				LOG_MEDUSA2_DEBUG("Connections to private addresses are disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::Ip_port(sock_addr));
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_private_address_disallowed, Poseidon::sslit("Connections to private addresses are disallowed"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_private_address_disallowed, Poseidon::Rcnts::view("Connections to private addresses are disallowed"));
 			}
 			LOG_MEDUSA2_DEBUG("@@ Creating Fetch_client: ip:port = ", Poseidon::Ip_port(sock_addr));
 
@@ -427,7 +427,7 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		break; }
 	default:
 		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::sslit("Unknown message"));
+		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
 	}
 }
 void Primary_session::on_sync_control_message(Poseidon::Cbpp::Status_code status_code, Poseidon::Stream_buffer param){

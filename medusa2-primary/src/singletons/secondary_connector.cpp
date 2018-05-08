@@ -115,7 +115,7 @@ namespace {
 				break; }
 			default:
 				LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::sslit("Unknown message"));
+				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
 			}
 		}
 
@@ -206,9 +206,9 @@ void Secondary_connector::attach_channel(const boost::shared_ptr<Secondary_chann
 	PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
-	DEBUG_THROW_UNLESS(client, Poseidon::Exception, Poseidon::sslit("Connection to secondary server is not ready"));
+	DEBUG_THROW_UNLESS(client, Poseidon::Exception, Poseidon::Rcnts::view("Connection to secondary server is not ready"));
 	const AUTO(pair, g_channels.emplace(channel->get_channel_uuid(), channel));
-	DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::sslit("Duplicate channel UUID"));
+	DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::Rcnts::view("Duplicate channel UUID"));
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = channel->get_channel_uuid();

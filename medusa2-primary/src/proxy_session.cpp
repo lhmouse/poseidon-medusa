@@ -122,7 +122,7 @@ protected:
 			response_headers.version     = 10001;
 			response_headers.status_code = Poseidon::Http::status_ok;
 			response_headers.reason      = "Connection Established";
-			response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Keep-Alive");
+			response_headers.headers.set(Poseidon::Rcnts::view("Proxy-Connection"), "Keep-Alive");
 			if(!session->sync_get_response_token()){
 				sync_unlink_and_shutdown(true);
 				return;
@@ -211,12 +211,12 @@ protected:
 		response_headers.headers.erase("Prxoy-Authenticate");
 		response_headers.headers.erase("Proxy-Connection");
 		response_headers.headers.erase("Proxy-Authentication-Info");
-		response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
-		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
+		response_headers.headers.set(Poseidon::Rcnts::view("Connection"), "Close");
+		response_headers.headers.set(Poseidon::Rcnts::view("Proxy-Connection"), "Close");
 		if(m_chunked){
 			const AUTO_REF(transfer_encoding, response_headers.headers.get("Transfer-Encoding"));
 			if(transfer_encoding.empty() || (::strcasecmp(transfer_encoding.c_str(), "identity") == 0)){
-				response_headers.headers.set(Poseidon::sslit("Transfer-Encoding"), "chunked");
+				response_headers.headers.set(Poseidon::Rcnts::view("Transfer-Encoding"), "chunked");
 			}
 			session->send_chunked_header(STD_MOVE(response_headers));
 		} else {
@@ -364,7 +364,7 @@ protected:
 					use_ssl = true;
 				} else {
 					LOG_MEDUSA2_WARNING("Unsupported protocol: ", uri.c_str(), ", remote = ", session->get_remote_info());
-					DEBUG_THROW(Poseidon::Exception, Poseidon::sslit("Unsupported protocol"));
+					DEBUG_THROW(Poseidon::Exception, Poseidon::Rcnts::view("Unsupported protocol"));
 				}
 				uri.erase(0, pos + 3);
 			}
@@ -381,7 +381,7 @@ protected:
 			// uri = "/foo/bar/page.html?param=value"
 			if(host[0] == '['){
 				pos = host.find(']');
-				DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::sslit("Invalid IPv6 address"));
+				DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::Rcnts::view("Invalid IPv6 address"));
 				pos = host.find(':', pos + 1);
 			} else {
 				pos = host.find(':');
@@ -389,8 +389,8 @@ protected:
 			if(pos != std::string::npos){
 				char *endptr;
 				const unsigned long port_val = std::strtoul(host.c_str() + pos + 1, &endptr, 10);
-				DEBUG_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::sslit("Invalid port string"));
-				DEBUG_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::sslit("Invalid port number"));
+				DEBUG_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::Rcnts::view("Invalid port string"));
+				DEBUG_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::Rcnts::view("Invalid port number"));
 				port = boost::numeric_cast<boost::uint16_t>(port_val);
 				host.erase(pos);
 			}
@@ -403,15 +403,15 @@ protected:
 				headers.erase("Prxoy-Authenticate");
 				headers.erase("Proxy-Connection");
 				headers.erase("Proxy-Authentication-Info");
-				headers.set(Poseidon::sslit("Connection"), "Close");
-				headers.set(Poseidon::sslit("X-Forwarded-Host"), host);
+				headers.set(Poseidon::Rcnts::view("Connection"), "Close");
+				headers.set(Poseidon::Rcnts::view("X-Forwarded-Host"), host);
 
 				AUTO(x_forwarded_for, headers.get("X-Forwarded-For"));
 				if(!x_forwarded_for.empty()){
 					x_forwarded_for += ", ";
 				}
 				x_forwarded_for += session->get_remote_info().ip();
-				headers.set(Poseidon::sslit("X-Forwarded-For"), STD_MOVE(x_forwarded_for));
+				headers.set(Poseidon::Rcnts::view("X-Forwarded-For"), STD_MOVE(x_forwarded_for));
 			}
 
 			channel = boost::make_shared<Channel>(session, STD_MOVE(host), port, use_ssl, no_delay, m_tunnel);
@@ -600,9 +600,9 @@ try {
 		response_headers.headers = headers;
 		response_headers.headers.erase("Transfer-Encoding");
 		response_headers.headers.erase("Content-Encoding");
-		response_headers.headers.set(Poseidon::sslit("Connection"), "Close");
-		response_headers.headers.set(Poseidon::sslit("Proxy-Connection"), "Close");
-		response_headers.headers.set(Poseidon::sslit("Content-Type"), "text/html; charset=utf-8");
+		response_headers.headers.set(Poseidon::Rcnts::view("Connection"), "Close");
+		response_headers.headers.set(Poseidon::Rcnts::view("Proxy-Connection"), "Close");
+		response_headers.headers.set(Poseidon::Rcnts::view("Content-Type"), "text/html; charset=utf-8");
 		Poseidon::Buffer_ostream entity_os;
 		entity_os <<"<html>"
 		          <<  "<head>"

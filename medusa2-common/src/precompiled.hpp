@@ -7,7 +7,7 @@
 #include <poseidon/precompiled.hpp>
 #include <poseidon/fwd.hpp>
 
-#include <poseidon/shared_nts.hpp>
+#include <poseidon/rcnts.hpp>
 #include <poseidon/exception.hpp>
 #include <poseidon/log.hpp>
 #include <poseidon/profiler.hpp>
