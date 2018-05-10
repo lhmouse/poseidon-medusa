@@ -27,12 +27,13 @@ sed -i -r -e "s,@@temp(-|_)late@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;
           -e "s,@@Temp(-|_)late@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;s,\\<\\w,\\u&,g"),g"	\
           -e "s,@@TEMP(-|_)LATE@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;s,\\w,\\u&,g"),g"	\
 	$(find "${_full_name}" -type f)
-ln -sf "./" "${_full_name}/${_full_name}"
-ln -sf "../etc/" "${_full_name}/etc"
+mv -fT "${_full_name}/${_prefix}-@@temp-late@@" "${_full_name}/${_full_name}"
+ln -sfT "./${_full_name}/src/" "${_full_name}/src"
+ln -sfT "../etc/" "${_full_name}/etc"
 
 echo "Creating configure files..."
 touch "etc/${_prefix}/${_full_name}-template.conf"
-ln -sf "${_full_name}-template.conf" "etc/${_prefix}/${_full_name}.conf"
+ln -sfT "${_full_name}-template.conf" "etc/${_prefix}/${_full_name}.conf"
 
 echo "Registering NEW project in 'configure.ac' and 'Makefile.am'..."
 sed -i -r -z "s,\\]\\)\\n##_INSERT_NEW_MAKEFILE_HERE,\\n\\t${_full_name}/Makefile&," configure.ac
