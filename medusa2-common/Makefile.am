@@ -3,7 +3,6 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 	-Wundef -Wshadow -Wstrict-aliasing=2 -Wstrict-overflow=2 -Wno-error=pragmas	\
 	-pipe -fPIC -DPIC -pthread
 AM_CXXFLAGS = -Wnon-virtual-dtor
-AM_LIBS =
 
 %.hpp.gch: %.hpp
 	${CXX} -x c++-header ${DEFS} -I.. ${AM_CPPFLAGS} ${CPPFLAGS} ${AM_CXXFLAGS} ${CXXFLAGS} -Wno-error $< -o $@
@@ -43,7 +42,8 @@ lib_libmedusa2_common_la_SOURCES =	\
 	medusa2-common/src/mmain.cpp
 
 lib_libmedusa2_common_la_LDFLAGS =	\
-	-Wl,--no-undefined -module -version-info 0:0:0
+	-Wl,--no-undefined -module -no-undefined -version-info 0:0:0
 
 lib_libmedusa2_common_la_LIBADD =	\
-	-lposeidon-main -lcrypto
+	-lposeidon-main	\
+	-lcrypto

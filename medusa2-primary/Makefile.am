@@ -3,7 +3,6 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 	-Wundef -Wshadow -Wstrict-aliasing=2 -Wstrict-overflow=2 -Wno-error=pragmas	\
 	-pipe -fPIC -DPIC -pthread
 AM_CXXFLAGS = -Wnon-virtual-dtor
-AM_LIBS =
 
 pkgsysconfdir = ${sysconfdir}/@PACKAGE@
 pkgsysconf_DATA =	\
@@ -30,7 +29,7 @@ lib_libmedusa2_primary_la_SOURCES =	\
 	medusa2-primary/src/mmain.cpp
 
 lib_libmedusa2_primary_la_LDFLAGS =	\
-	-Wl,--no-undefined -module -version-info 0:0:0
+	-Wl,--no-undefined -module -no-undefined -version-info 0:0:0
 
 lib_libmedusa2_primary_la_LIBADD =	\
 	../medusa2-common/lib/libmedusa2-common.la	\
