@@ -5,9 +5,9 @@ set -e
 _prefix="medusa2"
 
 if [[ -z "${1}" ]]; then
-	echo "Usage:" >/dev/stderr
-	echo "  ${0} <project_name>" >/dev/stderr
-	echo "<project_name> shall not contain the prefix '${_prefix}'" >/dev/stderr
+	echo "Usage:" >&2
+	echo "  ${0} <project_name>" >&2
+	echo "<project_name> shall not contain the prefix '${_prefix}'" >&2
 	exit 1
 fi
 
@@ -15,9 +15,9 @@ _canon_name="$(echo "${1}" | sed -r "s,/+$,,;s,\\W,-,g")"
 _full_name="${_prefix}-${_canon_name}"
 
 if [[ -d "${_full_name}" ]]; then
-	echo "Project directory already exists:" >/dev/stderr
-	echo "  ${_full_name}" >/dev/stderr
-	echo "You have to remove it before proceeding." >/dev/stderr
+	echo "Project directory already exists:" >&2
+	echo "  ${_full_name}" >&2
+	echo "You have to remove it before proceeding." >&2
 	exit 1
 fi
 
