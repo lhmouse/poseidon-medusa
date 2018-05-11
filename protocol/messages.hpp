@@ -16,7 +16,7 @@ namespace Protocol {
 	FIELD_VUINT        (no_delay)	\
 	FIELD_FLEXIBLE     (opaque)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   PS_Send
 #define MESSAGE_ID     3002
@@ -24,7 +24,7 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_FLEXIBLE     (segment)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   PS_Acknowledge
 #define MESSAGE_ID     3003
@@ -32,7 +32,7 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_VUINT        (bytes_to_acknowledge)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   PS_Shutdown
 #define MESSAGE_ID     3004
@@ -40,14 +40,14 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_VUINT        (no_linger)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   PS_Ping
 #define MESSAGE_ID     3005
 #define MESSAGE_FIELDS \
 	FIELD_FLEXIBLE     (opaque)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   SP_Opened
 #define MESSAGE_ID     4001
@@ -55,14 +55,14 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_FLEXIBLE     (opaque)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   SP_Established
 #define MESSAGE_ID     4002
 #define MESSAGE_FIELDS \
 	FIELD_FIXED        (channel_uuid, 16)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   SP_Received
 #define MESSAGE_ID     4003
@@ -70,7 +70,7 @@ namespace Protocol {
 	FIELD_FIXED        (channel_uuid, 16)	\
 	FIELD_FLEXIBLE     (segment)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   SP_Closed
 #define MESSAGE_ID     4004
@@ -79,14 +79,14 @@ namespace Protocol {
 	FIELD_VINT         (err_code)	\
 	FIELD_STRING       (err_msg)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 #define MESSAGE_NAME   SP_Pong
 #define MESSAGE_ID     4005
 #define MESSAGE_FIELDS \
 	FIELD_FLEXIBLE     (opaque)	\
 	//
-#include <poseidon/cbpp/message_generator.hpp>
+#include <poseidon/cbpp/message_generator.inl>
 
 }
 }
