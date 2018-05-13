@@ -41,7 +41,7 @@ public:
 
 private:
 	bool sync_get_response_token() NOEXCEPT;
-	void sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Optional_map &headers = Poseidon::Optional_map()) NOEXCEPT;
+	void sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Option_map &headers = Poseidon::Option_map()) NOEXCEPT;
 	void low_level_enqueue_tunnel_data(Poseidon::Stream_buffer data);
 
 protected:
@@ -50,7 +50,7 @@ protected:
 
 	void on_low_level_request_headers(Poseidon::Http::Request_headers request_headers, boost::uint64_t content_length) OVERRIDE;
 	void on_low_level_request_entity(boost::uint64_t entity_offset, Poseidon::Stream_buffer entity) OVERRIDE;
-	boost::shared_ptr<Poseidon::Http::Upgraded_session_base> on_low_level_request_end(boost::uint64_t content_length, Poseidon::Optional_map headers) OVERRIDE;
+	boost::shared_ptr<Poseidon::Http::Upgraded_session_base> on_low_level_request_end(boost::uint64_t content_length, Poseidon::Option_map headers) OVERRIDE;
 };
 
 }

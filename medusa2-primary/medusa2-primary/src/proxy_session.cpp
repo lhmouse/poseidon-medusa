@@ -242,7 +242,7 @@ protected:
 			// Do nothing.
 		}
 	}
-	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::Optional_map headers) OVERRIDE {
+	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::Option_map headers) OVERRIDE {
 		PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
@@ -482,10 +482,10 @@ protected:
 class Proxy_session::Request_end_job : public Proxy_session::Sync_job_base {
 private:
 	bool m_chunked;
-	Poseidon::Optional_map m_headers;
+	Poseidon::Option_map m_headers;
 
 public:
-	Request_end_job(const boost::shared_ptr<Proxy_session> &session, bool chunked, Poseidon::Optional_map headers)
+	Request_end_job(const boost::shared_ptr<Proxy_session> &session, bool chunked, Poseidon::Option_map headers)
 		: Sync_job_base(session)
 		, m_chunked(chunked), m_headers(STD_MOVE(headers))
 	{
@@ -588,7 +588,7 @@ bool Proxy_session::sync_get_response_token() NOEXCEPT {
 	m_response_token = true;
 	return true;
 }
-void Proxy_session::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Optional_map &headers) NOEXCEPT
+void Proxy_session::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Option_map &headers) NOEXCEPT
 try {
 	PROFILE_ME;
 
@@ -696,7 +696,7 @@ void Proxy_session::on_low_level_request_entity(boost::uint64_t /*entity_offset*
 		Poseidon::enqueue(boost::make_shared<Request_entity_job>(virtual_shared_from_this<Proxy_session>(), m_chunked, STD_MOVE(entity)));
 	}
 }
-boost::shared_ptr<Poseidon::Http::Upgraded_session_base> Proxy_session::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::Optional_map headers){
+boost::shared_ptr<Poseidon::Http::Upgraded_session_base> Proxy_session::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::Option_map headers){
 	PROFILE_ME;
 
 	if(m_tunnel){
