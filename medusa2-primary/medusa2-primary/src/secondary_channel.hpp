@@ -5,6 +5,7 @@
 #define MEDUSA2_PRIMARY_SECONDARY_CHANNEL_HPP_
 
 #include <poseidon/fwd.hpp>
+#include <poseidon/cxx_util.hpp>
 #include <poseidon/virtual_shared_from_this.hpp>
 #include <poseidon/cbpp/fwd.hpp>
 #include <poseidon/uuid.hpp>

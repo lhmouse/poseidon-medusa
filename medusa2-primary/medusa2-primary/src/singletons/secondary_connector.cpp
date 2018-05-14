@@ -141,7 +141,7 @@ namespace {
 
 		unsigned char data[256];
 		std::size_t size = Poseidon::random_uint32() % 256;
-		std::generate(data, data + size, Poseidon::RandomBitGenerator_uint32());
+		std::generate(data, data + size, Poseidon::Random_bit_generator_uint32());
 
 		Protocol::PS_Ping msg;
 		msg.opaque.put(data, size);
@@ -152,38 +152,36 @@ namespace {
 		PROFILE_ME;
 
 		AUTO(client, g_weak_client.lock());
-		if(client){
-			return;
-		}
+		if(!client){
+			for(AUTO(it, g_channels.begin()); it != g_channels.end(); ++it){
+				const AUTO(channel, it->second);
+				try {
+					channel->on_sync_closed(Protocol::error_secondary_server_connection_lost, "Lost connection to secondary server");
+				} catch(std::exception &e){
+					LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+				}
+			}
+			g_channels.clear();
 
-		for(AUTO(it, g_channels.begin()); it != g_channels.end(); ++it){
-			const AUTO(channel, it->second);
-			try {
-				channel->on_sync_closed(Protocol::error_secondary_server_connection_lost, "Lost connection to secondary server");
-			} catch(std::exception &e){
-				LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+			const AUTO(host, get_config<std::string>("secondary_connector_host", "127.0.0.1"));
+			const AUTO(port, get_config<boost::uint16_t>("secondary_connector_port", 3805));
+			const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
+			LOG_MEDUSA2_INFO("Connecting to secondary server: host:port = ", host, ":", port, ", use_ssl = ", use_ssl);
+
+			const AUTO(promised_sock_addr, Poseidon::Dns_daemon::enqueue_for_looking_up(host, port));
+			Poseidon::yield(promised_sock_addr);
+			const AUTO_REF(sock_addr, promised_sock_addr->get());
+
+			client = g_weak_client.lock();
+			if(!client){
+				client = boost::make_shared<Secondary_client>(sock_addr, use_ssl);
+				client->set_no_delay();
+				Poseidon::Epoll_daemon::add_socket(client, true);
+				g_weak_client = client;
 			}
 		}
-		g_channels.clear();
 
-		const AUTO(host, get_config<std::string>("secondary_connector_host", "127.0.0.1"));
-		const AUTO(port, get_config<boost::uint16_t>("secondary_connector_port", 3805));
-		const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
-		LOG_MEDUSA2_INFO("Connecting to secondary server: host:port = ", host, ":", port, ", use_ssl = ", use_ssl);
-
-		const AUTO(promised_sock_addr, Poseidon::Dns_daemon::enqueue_for_looking_up(host, port));
-		Poseidon::yield(promised_sock_addr);
-		const AUTO_REF(sock_addr, promised_sock_addr->get());
-
-		client = g_weak_client.lock();
-		if(client){
-			return;
-		}
-		client = boost::make_shared<Secondary_client>(sock_addr, use_ssl);
 		client->send(create_dummy_ping_message());
-		client->set_no_delay();
-		Poseidon::Epoll_daemon::add_socket(client, true);
-		g_weak_client = client;
 	}
 }
 
