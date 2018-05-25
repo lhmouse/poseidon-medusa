@@ -42,7 +42,7 @@ namespace {
 #define ON_MESSAGE(Msg_, msg_)	\
 				}	\
 				break; }	\
-			case Msg_::ID: {	\
+			case Msg_::id: {	\
 				PROFILE_ME;	\
 				Msg_ msg_(STD_MOVE(plaintext));	\
 				{
