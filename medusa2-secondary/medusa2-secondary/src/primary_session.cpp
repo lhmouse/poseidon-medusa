@@ -355,7 +355,8 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		break; }	\
 	case Msg_::id: {	\
 		POSEIDON_PROFILE_ME;	\
-		Msg_ msg_(STD_MOVE(plaintext));	\
+		Msg_ msg_;	\
+		msg_.deserialize(plaintext);	\
 		{
 //=============================================================================
 	ON_MESSAGE(Protocol::PS_Connect, msg){
@@ -419,7 +420,9 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 	ON_MESSAGE(Protocol::PS_Ping, msg){
 		MEDUSA2_LOG_INFO("Received PING from ", get_remote_info(), ": ", msg);
 
-		send(Protocol::SP_Pong(STD_MOVE(msg.opaque)));
+		Protocol::SP_Pong resp;
+		resp.opaque = STD_MOVE(msg.opaque);
+		send(resp);
 	}
 //=============================================================================
 #undef ON_MESSAGE

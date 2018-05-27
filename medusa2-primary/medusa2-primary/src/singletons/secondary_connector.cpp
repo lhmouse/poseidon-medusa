@@ -8,6 +8,7 @@
 #include "protocol/error_codes.hpp"
 #include "protocol/messages.hpp"
 #include <poseidon/cbpp/client.hpp>
+#include <poseidon/cbpp/exception.hpp>
 #include <poseidon/singletons/epoll_daemon.hpp>
 #include <poseidon/singletons/timer_daemon.hpp>
 #include <poseidon/sock_addr.hpp>
@@ -44,7 +45,8 @@ namespace {
 				break; }	\
 			case Msg_::id: {	\
 				POSEIDON_PROFILE_ME;	\
-				Msg_ msg_(STD_MOVE(plaintext));	\
+				Msg_ msg_;	\
+				msg_.deserialize(plaintext);	\
 				{
 //=============================================================================
 			ON_MESSAGE(Protocol::SP_Opened, msg){
