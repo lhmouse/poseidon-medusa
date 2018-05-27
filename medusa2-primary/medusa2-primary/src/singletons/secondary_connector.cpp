@@ -24,36 +24,36 @@ namespace {
 		Secondary_client(const Poseidon::Sock_addr &sock_addr, bool use_ssl)
 			: Poseidon::Cbpp::Client(sock_addr, use_ssl)
 		{
-			LOG_MEDUSA2_INFO("Secondary_client constructor: remote = ", Poseidon::Ip_port(sock_addr));
+			MEDUSA2_LOG_INFO("Secondary_client constructor: remote = ", Poseidon::Ip_port(sock_addr));
 		}
 		~Secondary_client(){
-			LOG_MEDUSA2_INFO("Secondary_client destructor: remote = ", get_remote_info());
+			MEDUSA2_LOG_INFO("Secondary_client destructor: remote = ", get_remote_info());
 		}
 
 	protected:
 		void on_sync_data_message(boost::uint16_t message_id, Poseidon::Stream_buffer payload) OVERRIDE {
-			PROFILE_ME;
-			LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
+			POSEIDON_PROFILE_ME;
+			MEDUSA2_LOG_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
 			AUTO(plaintext, Common::decrypt(STD_MOVE(payload)));
-			LOG_MEDUSA2_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
+			MEDUSA2_LOG_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
 			switch(message_id){
 				{{
 #define ON_MESSAGE(Msg_, msg_)	\
 				}	\
 				break; }	\
 			case Msg_::id: {	\
-				PROFILE_ME;	\
+				POSEIDON_PROFILE_ME;	\
 				Msg_ msg_(STD_MOVE(plaintext));	\
 				{
 //=============================================================================
 			ON_MESSAGE(Protocol::SP_Opened, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-				LOG_MEDUSA2_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
+				MEDUSA2_LOG_DEBUG("Channel opened: channel_uuid = ", channel_uuid);
 
 				const AUTO(it, g_channels.find(channel_uuid));
 				if(it == g_channels.end()){
-					LOG_MEDUSA2_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
+					MEDUSA2_LOG_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
 					break;
 				}
 				const AUTO(channel, it->second);
@@ -62,11 +62,11 @@ namespace {
 			}
 			ON_MESSAGE(Protocol::SP_Established, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-				LOG_MEDUSA2_DEBUG("Channel established: channel_uuid = ", channel_uuid);
+				MEDUSA2_LOG_DEBUG("Channel established: channel_uuid = ", channel_uuid);
 
 				const AUTO(it, g_channels.find(channel_uuid));
 				if(it == g_channels.end()){
-					LOG_MEDUSA2_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
+					MEDUSA2_LOG_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
 					break;
 				}
 				const AUTO(channel, it->second);
@@ -75,11 +75,11 @@ namespace {
 			}
 			ON_MESSAGE(Protocol::SP_Received, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-				LOG_MEDUSA2_DEBUG("Data received from channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
+				MEDUSA2_LOG_DEBUG("Data received from channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
 
 				const AUTO(it, g_channels.find(channel_uuid));
 				if(it == g_channels.end()){
-					LOG_MEDUSA2_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
+					MEDUSA2_LOG_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
 					break;
 				}
 				const AUTO(channel, it->second);
@@ -94,11 +94,11 @@ namespace {
 			}
 			ON_MESSAGE(Protocol::SP_Closed, msg){
 				const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-				LOG_MEDUSA2_DEBUG("Channel closed: channel_uuid = ", channel_uuid, ", err_code = ", msg.err_code, ", err_msg = ", msg.err_msg);
+				MEDUSA2_LOG_DEBUG("Channel closed: channel_uuid = ", channel_uuid, ", err_code = ", msg.err_code, ", err_msg = ", msg.err_msg);
 
 				const AUTO(it, g_channels.find(channel_uuid));
 				if(it == g_channels.end()){
-					LOG_MEDUSA2_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
+					MEDUSA2_LOG_WARNING("Dangling channel: channel_uuid = ", channel_uuid);
 					break;
 				}
 				const AUTO(channel, it->second);
@@ -107,28 +107,28 @@ namespace {
 				channel->on_sync_closed(msg.err_code, STD_MOVE(msg.err_msg));
 			}
 			ON_MESSAGE(Protocol::SP_Pong, msg){
-				LOG_MEDUSA2_INFO("Received PONG from ", get_remote_info(), ": ", msg);
+				MEDUSA2_LOG_INFO("Received PONG from ", get_remote_info(), ": ", msg);
 			}
 //=============================================================================
 #undef ON_MESSAGE
 				}
 				break; }
 			default:
-				LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
+				MEDUSA2_LOG_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
+				POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
 			}
 		}
 
 	public:
 		bool send(boost::uint16_t message_id, Poseidon::Stream_buffer payload) OVERRIDE {
-			PROFILE_ME;
+			POSEIDON_PROFILE_ME;
 
 			AUTO(ciphertext, Common::encrypt(STD_MOVE(payload)));
 			return Poseidon::Cbpp::Client::send(message_id, STD_MOVE(ciphertext));
 		}
 
 		bool send(const Poseidon::Cbpp::Message_base &msg){
-			PROFILE_ME;
+			POSEIDON_PROFILE_ME;
 
 			return send(boost::numeric_cast<boost::uint16_t>(msg.get_id()), Poseidon::Stream_buffer(msg));
 		}
@@ -137,7 +137,7 @@ namespace {
 	boost::weak_ptr<Secondary_client> g_weak_client;
 
 	Protocol::PS_Ping create_dummy_ping_message(){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		unsigned char data[256];
 		std::size_t size = Poseidon::random_uint32() % 256;
@@ -149,7 +149,7 @@ namespace {
 	}
 
 	void reconnect_timer_proc(){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		AUTO(client, g_weak_client.lock());
 		if(!client){
@@ -158,7 +158,7 @@ namespace {
 				try {
 					channel->on_sync_closed(Protocol::error_secondary_server_connection_lost, "Lost connection to secondary server");
 				} catch(std::exception &e){
-					LOG_MEDUSA2_ERROR("std::exception thrown: what = ", e.what());
+					MEDUSA2_LOG_ERROR("std::exception thrown: what = ", e.what());
 				}
 			}
 			g_channels.clear();
@@ -166,7 +166,7 @@ namespace {
 			const AUTO(host, get_config<std::string>("secondary_connector_host", "127.0.0.1"));
 			const AUTO(port, get_config<boost::uint16_t>("secondary_connector_port", 3805));
 			const AUTO(use_ssl, get_config<bool>("secondary_connector_use_ssl"));
-			LOG_MEDUSA2_INFO("Connecting to secondary server: host:port = ", host, ":", port, ", use_ssl = ", use_ssl);
+			MEDUSA2_LOG_INFO("Connecting to secondary server: host:port = ", host, ":", port, ", use_ssl = ", use_ssl);
 
 			const AUTO(promised_sock_addr, Poseidon::Dns_daemon::enqueue_for_looking_up(host, port));
 			Poseidon::yield(promised_sock_addr);
@@ -185,14 +185,14 @@ namespace {
 	}
 }
 
-MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+POSEIDON_MODULE_RAII_PRIORITY(handles, Poseidon::module_init_priority_low){
 	const AUTO(reconnect_delay, get_config<boost::uint64_t>("secondary_connector_reconnect_delay", 5000));
 	const AUTO(timer, Poseidon::Timer_daemon::register_timer(0, reconnect_delay, boost::bind(reconnect_timer_proc)));
 	handles.push(timer);
 }
 
 boost::shared_ptr<Secondary_channel> Secondary_connector::get_attached_channel(const Poseidon::Uuid &channel_uuid){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(it, g_channels.find(channel_uuid));
 	if(it == g_channels.end()){
@@ -201,12 +201,12 @@ boost::shared_ptr<Secondary_channel> Secondary_connector::get_attached_channel(c
 	return it->second;
 }
 void Secondary_connector::attach_channel(const boost::shared_ptr<Secondary_channel> &channel){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
-	DEBUG_THROW_UNLESS(client, Poseidon::Exception, Poseidon::Rcnts::view("Connection to secondary server is not ready"));
+	POSEIDON_THROW_UNLESS(client, Poseidon::Exception, Poseidon::Rcnts::view("Connection to secondary server is not ready"));
 	const AUTO(pair, g_channels.emplace(channel->get_channel_uuid(), channel));
-	DEBUG_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::Rcnts::view("Duplicate channel UUID"));
+	POSEIDON_THROW_UNLESS(pair.second, Poseidon::Exception, Poseidon::Rcnts::view("Duplicate channel UUID"));
 
 	Protocol::PS_Connect msg;
 	msg.channel_uuid = channel->get_channel_uuid();
@@ -218,7 +218,7 @@ void Secondary_connector::attach_channel(const boost::shared_ptr<Secondary_chann
 }
 
 const Poseidon::Ip_port &Secondary_connector::get_remote_info(){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
 	if(!client){
@@ -227,7 +227,7 @@ const Poseidon::Ip_port &Secondary_connector::get_remote_info(){
 	return client->get_remote_info();
 }
 bool Secondary_connector::send(const Poseidon::Cbpp::Message_base &msg){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
 	if(!client){
@@ -236,7 +236,7 @@ bool Secondary_connector::send(const Poseidon::Cbpp::Message_base &msg){
 	return client->send(msg);
 }
 bool Secondary_connector::shutdown(long err_code, const char *what) NOEXCEPT {
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());
 	if(!client){

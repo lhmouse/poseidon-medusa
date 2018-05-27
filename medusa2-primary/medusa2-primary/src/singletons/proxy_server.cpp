@@ -35,14 +35,14 @@ namespace {
 	boost::weak_ptr<Proxy_tcp_server> g_weak_tcp_server;
 }
 
-MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+POSEIDON_MODULE_RAII_PRIORITY(handles, Poseidon::module_init_priority_low){
 	const AUTO(bind, get_config<std::string>("proxy_server_bind", "127.0.0.1"));
 	const AUTO(port, get_config<boost::uint16_t>("proxy_server_port", 3808));
 	const AUTO(cert, get_config<std::string>("proxy_server_certificate"));
 	const AUTO(pkey, get_config<std::string>("proxy_server_private_key"));
 	const AUTO(relm, get_config<std::string>("proxy_server_realm"));
 	const AUTO(auth, get_config_all<std::string>("proxy_server_auth"));
-	LOG_MEDUSA2_INFO("Secondary server: Creating Proxy_tcp_server: bind:port = ", bind, ":", port);
+	MEDUSA2_LOG_INFO("Secondary server: Creating Proxy_tcp_server: bind:port = ", bind, ":", port);
 	boost::shared_ptr<const Poseidon::Http::Authentication_context> auth_ctx;
 	if(!auth.empty()){
 		auth_ctx = Poseidon::Http::create_authentication_context(relm, auth);

@@ -30,12 +30,12 @@ namespace {
 	boost::weak_ptr<Primary_tcp_server> g_weak_tcp_server;
 }
 
-MODULE_RAII_PRIORITY(handles, INIT_PRIORITY_LOW){
+POSEIDON_MODULE_RAII_PRIORITY(handles, Poseidon::module_init_priority_low){
 	const AUTO(bind, get_config<std::string>("primary_server_bind", "127.0.0.1"));
 	const AUTO(port, get_config<boost::uint16_t>("primary_server_port", 3805));
 	const AUTO(cert, get_config<std::string>("primary_server_certificate"));
 	const AUTO(pkey, get_config<std::string>("primary_server_private_key"));
-	LOG_MEDUSA2_INFO("Secondary server: Creating Primary_tcp_server: bind:port = ", bind, ":", port);
+	MEDUSA2_LOG_INFO("Secondary server: Creating Primary_tcp_server: bind:port = ", bind, ":", port);
 	const AUTO(tcp_server, boost::make_shared<Primary_tcp_server>(bind, port, cert, pkey));
 	Poseidon::Epoll_daemon::add_socket(tcp_server, false);
 	handles.push(tcp_server);

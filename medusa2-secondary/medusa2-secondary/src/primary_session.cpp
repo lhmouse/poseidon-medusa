@@ -36,19 +36,19 @@ public:
 
 protected:
 	void on_connect() OVERRIDE {
-		LOG_MEDUSA2_TRACE("Connection established: remote = ", get_remote_info());
+		MEDUSA2_LOG_TRACE("Connection established: remote = ", get_remote_info());
 
 		const Poseidon::Mutex::Unique_lock lock(m_mutex);
 		m_connected_or_closed = true;
 		m_established_after_all = true;
 	}
 	void on_read_hup() OVERRIDE {
-		LOG_MEDUSA2_TRACE("Connection read hang up: remote = ", get_remote_info());
+		MEDUSA2_LOG_TRACE("Connection read hang up: remote = ", get_remote_info());
 
 		shutdown_write();
 	}
 	void on_close(int err_code) OVERRIDE {
-		LOG_MEDUSA2_TRACE("Connection closed: remote = ", get_remote_info(), ", err_code = ", err_code);
+		MEDUSA2_LOG_TRACE("Connection closed: remote = ", get_remote_info(), ", err_code = ", err_code);
 
 		const Poseidon::Mutex::Unique_lock lock(m_mutex);
 		m_connected_or_closed = true;
@@ -57,7 +57,7 @@ protected:
 	void on_receive(Poseidon::Stream_buffer data) OVERRIDE {
 		const AUTO(max_queue_size, get_config<boost::uint64_t>("fetch_max_queue_size", 65536));
 		const AUTO(bytes_received, static_cast<boost::uint64_t>(data.size()));
-		LOG_MEDUSA2_TRACE("Receive: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_received = ", bytes_received);
+		MEDUSA2_LOG_TRACE("Receive: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_received = ", bytes_received);
 
 		const Poseidon::Mutex::Unique_lock lock(m_mutex);
 		m_recv_queue.splice(data);
@@ -90,7 +90,7 @@ public:
 
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
 		const AUTO(max_queue_size, get_config<boost::uint64_t>("fetch_max_queue_size", 65536));
-		LOG_MEDUSA2_TRACE("Acknowledge: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_to_acknowledge = ", bytes_to_acknowledge);
+		MEDUSA2_LOG_TRACE("Acknowledge: remote = ", get_remote_info(), ", max_queue_size = ", max_queue_size, ", bytes_to_acknowledge = ", bytes_to_acknowledge);
 
 		const Poseidon::Mutex::Unique_lock lock(m_mutex);
 		m_queue_size = Poseidon::checked_sub(m_queue_size, bytes_to_acknowledge);
@@ -121,14 +121,14 @@ public:
 		: m_channel_uuid(channel_uuid), m_weak_session(session), m_host(STD_MOVE(host)), m_port(port), m_use_ssl(use_ssl), m_no_delay(no_delay)
 		, m_promised_sock_addr(), m_establishment_notified(false), m_send_queue(), m_shutdown_read(false), m_shutdown_write(false), m_no_linger(false), m_fetch_client()
 	{
-		LOG_MEDUSA2_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
+		MEDUSA2_LOG_TRACE("Channel constructor: channel_uuid = ", get_channel_uuid());
 	}
 	~Channel(){
-		LOG_MEDUSA2_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
+		MEDUSA2_LOG_TRACE("Channel destructor: channel_uuid = ", get_channel_uuid());
 
 		const AUTO(fetch_client, m_fetch_client);
 		if(fetch_client){
-			LOG_MEDUSA2_DEBUG("Fetch_client was not shut down cleanly: channel_uuid = ", get_channel_uuid());
+			MEDUSA2_LOG_DEBUG("Fetch_client was not shut down cleanly: channel_uuid = ", get_channel_uuid());
 			fetch_client->force_shutdown();
 		}
 	}
@@ -139,20 +139,20 @@ public:
 	}
 
 	void send(Poseidon::Stream_buffer segment){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		m_send_queue.splice(segment);
 	}
 	void acknowledge(boost::uint64_t bytes_to_acknowledge){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(fetch_client, m_fetch_client);
-		DEBUG_THROW_ASSERT(fetch_client);
+		POSEIDON_THROW_ASSERT(fetch_client);
 
 		fetch_client->acknowledge(bytes_to_acknowledge);
 	}
 	void shutdown(bool no_linger){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		if(no_linger){
 			m_shutdown_read = true;
@@ -162,42 +162,42 @@ public:
 	}
 
 	bool update(){
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
-		DEBUG_THROW_ASSERT(session);
+		POSEIDON_THROW_ASSERT(session);
 
 		AUTO(fetch_client, m_fetch_client);
 		if(!fetch_client){
 			if(m_shutdown_read){
-				LOG_MEDUSA2_DEBUG("Connection was cancelled: host:port = ", m_host, ":", m_port);
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_cancelled, Poseidon::Rcnts::view("Connection was cancelled"));
+				MEDUSA2_LOG_DEBUG("Connection was cancelled: host:port = ", m_host, ":", m_port);
+				POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_cancelled, Poseidon::Rcnts::view("Connection was cancelled"));
 			}
 
 			// Perform DNS lookup.
 			if(!m_promised_sock_addr){
-				LOG_MEDUSA2_DEBUG("@@ DNS lookup: host:port = ", m_host, ":", m_port);
+				MEDUSA2_LOG_DEBUG("@@ DNS lookup: host:port = ", m_host, ":", m_port);
 				m_promised_sock_addr = Poseidon::Dns_daemon::enqueue_for_looking_up(m_host, m_port);
 			}
 			if(!m_promised_sock_addr->is_satisfied()){
-				LOG_MEDUSA2_TRACE("Waiting for DNS lookup: host:port = ", m_host, ":", m_port);
+				MEDUSA2_LOG_TRACE("Waiting for DNS lookup: host:port = ", m_host, ":", m_port);
 				return false;
 			}
 			Poseidon::Sock_addr sock_addr;
 			try {
 				sock_addr = m_promised_sock_addr->get();
 			} catch(std::exception &e){
-				LOG_MEDUSA2_DEBUG("DNS failure: what = ", e.what());
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_dns_failure, Poseidon::Rcnts(e.what()));
+				MEDUSA2_LOG_DEBUG("DNS failure: what = ", e.what());
+				POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_dns_failure, Poseidon::Rcnts(e.what()));
 			}
 			if(sock_addr.is_private()){
-				LOG_MEDUSA2_DEBUG("Connections to private addresses are disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::Ip_port(sock_addr));
-				DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_private_address_disallowed, Poseidon::Rcnts::view("Connections to private addresses are disallowed"));
+				MEDUSA2_LOG_DEBUG("Connections to private addresses are disallowed: host:port = ", m_host, ":", m_port, ", ip:port = ", Poseidon::Ip_port(sock_addr));
+				POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_private_address_disallowed, Poseidon::Rcnts::view("Connections to private addresses are disallowed"));
 			}
-			LOG_MEDUSA2_DEBUG("@@ Creating Fetch_client: ip:port = ", Poseidon::Ip_port(sock_addr));
+			MEDUSA2_LOG_DEBUG("@@ Creating Fetch_client: ip:port = ", Poseidon::Ip_port(sock_addr));
 
 			// Create the TCP client.
-			DEBUG_THROW_ASSERT(!m_establishment_notified);
+			POSEIDON_THROW_ASSERT(!m_establishment_notified);
 			fetch_client = boost::make_shared<Fetch_client>(sock_addr, m_use_ssl);
 			if(m_no_delay){
 				fetch_client->set_no_delay();
@@ -218,7 +218,7 @@ public:
 				fetch_client->shutdown_write();
 			}
 			if(!fetch_client->is_connected_or_closed()){
-				LOG_MEDUSA2_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
+				MEDUSA2_LOG_TRACE("Waiting for establishment: host:port = ", m_host, ":", m_port);
 				return false;
 			}
 
@@ -256,13 +256,13 @@ public:
 
 		switch(syserrno){
 		case ECONNREFUSED:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_refused, Poseidon::get_error_desc(syserrno));
+			POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_refused, Poseidon::get_error_desc(syserrno));
 		case ETIMEDOUT:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_timed_out, Poseidon::get_error_desc(syserrno));
+			POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_timed_out, Poseidon::get_error_desc(syserrno));
 		case ECONNRESET:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_reset_by_peer, Poseidon::get_error_desc(syserrno));
+			POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_reset_by_peer, Poseidon::get_error_desc(syserrno));
 		default:
-			DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_lost_unspecified, Poseidon::get_error_desc(syserrno));
+			POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_connection_lost_unspecified, Poseidon::get_error_desc(syserrno));
 		case 0:
 			return true;
 		}
@@ -270,7 +270,7 @@ public:
 };
 
 void Primary_session::sync_timer_proc(const boost::weak_ptr<Primary_session> &weak_session){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	const AUTO(session, weak_session.lock());
 	if(!session){
@@ -284,35 +284,35 @@ Primary_session::Primary_session(Poseidon::Move<Poseidon::Unique_file> socket)
 	, m_session_uuid(Poseidon::Uuid::random())
 	, m_authenticated(false)
 {
-	LOG_MEDUSA2_INFO("Primary_session constructor: remote = ", get_remote_info());
+	MEDUSA2_LOG_INFO("Primary_session constructor: remote = ", get_remote_info());
 }
 Primary_session::~Primary_session(){
-	LOG_MEDUSA2_INFO("Primary_session destructor: remote = ", get_remote_info());
+	MEDUSA2_LOG_INFO("Primary_session destructor: remote = ", get_remote_info());
 }
 
 void Primary_session::on_sync_timer()
 try {
-	PROFILE_ME;
-	LOG_MEDUSA2_TRACE("Timer: remote = ", get_remote_info());
+	POSEIDON_PROFILE_ME;
+	MEDUSA2_LOG_TRACE("Timer: remote = ", get_remote_info());
 
 	Protocol::SP_Closed closed_msg;
 	bool erase_it;
 	for(AUTO(it, m_channels.begin()); it != m_channels.end(); erase_it ? (it = m_channels.erase(it)) : ++it){
 		const AUTO(channel_uuid, it->first);
 		const AUTO(channel, it->second);
-		LOG_MEDUSA2_TRACE("Updating channel: channel_uuid = ", channel_uuid);
+		MEDUSA2_LOG_TRACE("Updating channel: channel_uuid = ", channel_uuid);
 		closed_msg.channel_uuid = channel_uuid;
 		try {
 			erase_it = channel->update();
 			closed_msg.err_code = 0;
 			closed_msg.err_msg  = VAL_INIT;
 		} catch(Poseidon::Cbpp::Exception &e){
-			LOG_MEDUSA2_INFO("Cbpp::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
+			MEDUSA2_LOG_INFO("Cbpp::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
 			erase_it = true;
 			closed_msg.err_code = e.get_status_code();
 			closed_msg.err_msg  = e.what();
 		} catch(std::exception &e){
-			LOG_MEDUSA2_INFO("std::exception thrown: what = ", e.what());
+			MEDUSA2_LOG_INFO("std::exception thrown: what = ", e.what());
 			erase_it = true;
 			closed_msg.err_code = Protocol::error_internal_error;
 			closed_msg.err_msg  = e.what();
@@ -323,29 +323,29 @@ try {
 	}
 
 	if(m_channels.empty()){
-		LOG_MEDUSA2_DEBUG("Destroying timer: remote = ", get_remote_info());
+		MEDUSA2_LOG_DEBUG("Destroying timer: remote = ", get_remote_info());
 		m_timer.reset();
 	}
 } catch(Poseidon::Cbpp::Exception &e){
-	LOG_MEDUSA2_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
+	MEDUSA2_LOG_ERROR("Cbpp::Exception thrown: remote = ", get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
 	shutdown(e.get_status_code(), e.what());
 } catch(std::exception &e){
-	LOG_MEDUSA2_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
+	MEDUSA2_LOG_ERROR("std::exception thrown: remote = ", get_remote_info(), ", what = ", e.what());
 	shutdown(Protocol::error_internal_error, e.what());
 }
 void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon::Stream_buffer payload){
-	PROFILE_ME;
-	LOG_MEDUSA2_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
+	POSEIDON_PROFILE_ME;
+	MEDUSA2_LOG_TRACE("Received data message: remote = ", get_remote_info(), ", message_id = ", message_id);
 
 	Poseidon::Stream_buffer plaintext;
 	try {
 		plaintext = Common::decrypt(STD_MOVE(payload));
 	} catch(std::exception &e){
-		LOG_MEDUSA2_ERROR("Failed to decrypt message: remote = ", get_remote_info(), ", what = ", e.what());
+		MEDUSA2_LOG_ERROR("Failed to decrypt message: remote = ", get_remote_info(), ", what = ", e.what());
 		force_shutdown();
 		return;
 	}
-	LOG_MEDUSA2_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
+	MEDUSA2_LOG_TRACE("> message_id = ", message_id, ", plaintext.size() = ", plaintext.size());
 	m_authenticated = true;
 
 	switch(message_id){
@@ -354,19 +354,19 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		}	\
 		break; }	\
 	case Msg_::id: {	\
-		PROFILE_ME;	\
+		POSEIDON_PROFILE_ME;	\
 		Msg_ msg_(STD_MOVE(plaintext));	\
 		{
 //=============================================================================
 	ON_MESSAGE(Protocol::PS_Connect, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Create channel and connect: channel_uuid = ", channel_uuid, ", host:port = ", msg.host, ":", msg.port, ", use_ssl = ", msg.use_ssl);
+		MEDUSA2_LOG_DEBUG("Create channel and connect: channel_uuid = ", channel_uuid, ", host:port = ", msg.host, ":", msg.port, ", use_ssl = ", msg.use_ssl);
 
 		if(!m_timer){
-			LOG_MEDUSA2_DEBUG("Creating timer: remote = ", get_remote_info());
+			MEDUSA2_LOG_DEBUG("Creating timer: remote = ", get_remote_info());
 			m_timer = Poseidon::Timer_daemon::register_timer(0, 200, boost::bind(&sync_timer_proc, virtual_weak_from_this<Primary_session>()));
 		}
-		LOG_MEDUSA2_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
+		MEDUSA2_LOG_DEBUG("Creating channel: channel_uuid = ", channel_uuid);
 		const AUTO(channel, boost::make_shared<Channel>(channel_uuid, virtual_shared_from_this<Primary_session>(), STD_MOVE(msg.host), msg.port, msg.use_ssl, msg.no_delay));
 		const AUTO(it, m_channels.emplace(channel_uuid, channel));
 
@@ -379,11 +379,11 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 	}
 	ON_MESSAGE(Protocol::PS_Send, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Send to channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
+		MEDUSA2_LOG_DEBUG("Send to channel: channel_uuid = ", channel_uuid, ", segment.size() = ", msg.segment.size());
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
+			MEDUSA2_LOG_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
@@ -392,11 +392,11 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 	}
 	ON_MESSAGE(Protocol::PS_Acknowledge, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Acknowledge from channel: channel_uuid = ", channel_uuid, ", bytes_to_acknowledge = ", msg.bytes_to_acknowledge);
+		MEDUSA2_LOG_DEBUG("Acknowledge from channel: channel_uuid = ", channel_uuid, ", bytes_to_acknowledge = ", msg.bytes_to_acknowledge);
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
+			MEDUSA2_LOG_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
@@ -405,11 +405,11 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 	}
 	ON_MESSAGE(Protocol::PS_Shutdown, msg){
 		const AUTO(channel_uuid, Poseidon::Uuid(msg.channel_uuid));
-		LOG_MEDUSA2_DEBUG("Shutdown channel: channel_uuid = ", channel_uuid, ", no_linger = ", msg.no_linger);
+		MEDUSA2_LOG_DEBUG("Shutdown channel: channel_uuid = ", channel_uuid, ", no_linger = ", msg.no_linger);
 
 		const AUTO(it, m_channels.find(channel_uuid));
 		if(it == m_channels.end()){
-			LOG_MEDUSA2_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
+			MEDUSA2_LOG_DEBUG("Channel not found: channel_uuid = ", channel_uuid);
 			break;
 		}
 		const AUTO(channel, it->second);
@@ -417,7 +417,7 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		channel->shutdown(msg.no_linger);
 	}
 	ON_MESSAGE(Protocol::PS_Ping, msg){
-		LOG_MEDUSA2_INFO("Received PING from ", get_remote_info(), ": ", msg);
+		MEDUSA2_LOG_INFO("Received PING from ", get_remote_info(), ": ", msg);
 
 		send(Protocol::SP_Pong(STD_MOVE(msg.opaque)));
 	}
@@ -426,15 +426,15 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		}
 		break; }
 	default:
-		LOG_MEDUSA2_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
-		DEBUG_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
+		MEDUSA2_LOG_ERROR("Unknown message: remote = ", get_remote_info(), ", message_id = ", message_id);
+		POSEIDON_THROW(Poseidon::Cbpp::Exception, Protocol::error_not_found, Poseidon::Rcnts::view("Unknown message"));
 	}
 }
 void Primary_session::on_sync_control_message(Poseidon::Cbpp::Status_code status_code, Poseidon::Stream_buffer param){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	if(!m_authenticated){
-		LOG_MEDUSA2_ERROR("Primary_session has not authenticated: remote = ", get_remote_info());
+		MEDUSA2_LOG_ERROR("Primary_session has not authenticated: remote = ", get_remote_info());
 		force_shutdown();
 		return;
 	}
@@ -443,14 +443,14 @@ void Primary_session::on_sync_control_message(Poseidon::Cbpp::Status_code status
 }
 
 bool Primary_session::send(boost::uint16_t message_id, Poseidon::Stream_buffer payload){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	AUTO(ciphertext, Common::encrypt(STD_MOVE(payload)));
 	return Poseidon::Cbpp::Session::send(message_id, STD_MOVE(ciphertext));
 }
 
 bool Primary_session::send(const Poseidon::Cbpp::Message_base &msg){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	return send(boost::numeric_cast<boost::uint16_t>(msg.get_id()), Poseidon::Stream_buffer(msg));
 }

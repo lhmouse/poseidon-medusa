@@ -7,7 +7,7 @@
 namespace Medusa2 {
 namespace Primary {
 
-DEFINE_MODULE_CONFIG("medusa2-primary.conf")
+POSEIDON_DEFINE_MODULE_CONFIG("medusa2-primary.conf")
 
 }
 }

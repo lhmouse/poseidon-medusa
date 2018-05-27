@@ -27,16 +27,16 @@ public:
 
 protected:
 	void on_connect() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Tunnel_session::on_connect()");
+		MEDUSA2_LOG_DEBUG("Tunnel_session::on_connect()");
 	}
 	void on_read_hup() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Tunnel_session::on_read_hup()");
+		MEDUSA2_LOG_DEBUG("Tunnel_session::on_read_hup()");
 	}
 	void on_close(int err_code) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Tunnel_session::on_close(): err_code = ", err_code);
+		MEDUSA2_LOG_DEBUG("Tunnel_session::on_close(): err_code = ", err_code);
 	}
 	void on_receive(Poseidon::Stream_buffer data) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Tunnel_session::on_receive(): data.size() = ", data.size());
+		MEDUSA2_LOG_DEBUG("Tunnel_session::on_receive(): data.size() = ", data.size());
 
 		const AUTO(session, boost::dynamic_pointer_cast<Proxy_session>(get_parent()));
 		if(!session){
@@ -57,16 +57,16 @@ public:
 
 protected:
 	void on_connect() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Deaf_session::on_connect()");
+		MEDUSA2_LOG_DEBUG("Deaf_session::on_connect()");
 	}
 	void on_read_hup() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Deaf_session::on_read_hup()");
+		MEDUSA2_LOG_DEBUG("Deaf_session::on_read_hup()");
 	}
 	void on_close(int err_code) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Deaf_session::on_close(): err_code = ", err_code);
+		MEDUSA2_LOG_DEBUG("Deaf_session::on_close(): err_code = ", err_code);
 	}
 	void on_receive(Poseidon::Stream_buffer data) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Deaf_session::on_receive(): data.size() = ", data.size());
+		MEDUSA2_LOG_DEBUG("Deaf_session::on_receive(): data.size() = ", data.size());
 	}
 };
 
@@ -86,14 +86,14 @@ public:
 	~Channel(){
 		const AUTO(session, m_weak_session.lock());
 		if(session){
-			LOG_MEDUSA2_DEBUG("Channel was not shut down cleanly: channel_uuid = ", get_channel_uuid());
+			MEDUSA2_LOG_DEBUG("Channel was not shut down cleanly: channel_uuid = ", get_channel_uuid());
 			session->force_shutdown();
 		}
 	}
 
 private:
 	void sync_unlink_and_shutdown(bool no_linger) NOEXCEPT {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		m_weak_session.reset();
 
@@ -103,21 +103,21 @@ private:
 protected:
 	// Secondary_channel
 	void on_sync_opened() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Channel::on_sync_opened()");
+		MEDUSA2_LOG_DEBUG("Channel::on_sync_opened()");
 	}
 	void on_sync_established() OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Channel::on_sync_established()");
+		MEDUSA2_LOG_DEBUG("Channel::on_sync_established()");
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
-			LOG_MEDUSA2_DEBUG("Proxy client had disconnected before the connection to the origin server could be established.");
+			MEDUSA2_LOG_DEBUG("Proxy client had disconnected before the connection to the origin server could be established.");
 			shutdown(true);
 			return;
 		}
 
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
-			DEBUG_THROW_ASSERT(tunnel_session);
+			POSEIDON_THROW_ASSERT(tunnel_session);
 			Poseidon::Http::Response_headers response_headers;
 			response_headers.version     = 10001;
 			response_headers.status_code = Poseidon::Http::status_ok;
@@ -133,26 +133,26 @@ protected:
 		}
 	}
 	void on_sync_received(Poseidon::Stream_buffer data) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Channel::on_sync_received(): data.size() = ", data.size());
+		MEDUSA2_LOG_DEBUG("Channel::on_sync_received(): data.size() = ", data.size());
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
-			LOG_MEDUSA2_DEBUG("Proxy client had disconnected while there are still some data to be transmitted.");
+			MEDUSA2_LOG_DEBUG("Proxy client had disconnected while there are still some data to be transmitted.");
 			shutdown(true);
 			return;
 		}
 
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
-			DEBUG_THROW_ASSERT(tunnel_session);
+			POSEIDON_THROW_ASSERT(tunnel_session);
 			tunnel_session->send(STD_MOVE(data));
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
-			DEBUG_THROW_ASSERT(deaf_session);
+			POSEIDON_THROW_ASSERT(deaf_session);
 			try {
 				put_encoded_data(STD_MOVE(data));
 			} catch(std::exception &e){
-				LOG_MEDUSA2_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
+				MEDUSA2_LOG_WARNING("std::exception thrown while parsing response from the origin server: what = ", e.what());
 				sync_unlink_and_shutdown(true);
 				session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::error_origin_invalid_http_response, "The origin server sent no valid HTTP response");
 			}
@@ -162,7 +162,7 @@ protected:
 		session->set_timeout(timeout);
 	}
 	void on_sync_closed(long err_code, std::string err_msg) OVERRIDE {
-		LOG_MEDUSA2_DEBUG("Channel::on_sync_closed(): err_code = ", err_code, ", err_msg = ", err_msg);
+		MEDUSA2_LOG_DEBUG("Channel::on_sync_closed(): err_code = ", err_code, ", err_msg = ", err_msg);
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -171,11 +171,11 @@ protected:
 
 		if(m_tunnel){
 			const AUTO(tunnel_session, boost::dynamic_pointer_cast<Tunnel_session>(session->get_upgraded_session()));
-			DEBUG_THROW_ASSERT(tunnel_session);
+			POSEIDON_THROW_ASSERT(tunnel_session);
 			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, err_code, err_msg.c_str());
 		} else {
 			const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
-			DEBUG_THROW_ASSERT(deaf_session);
+			POSEIDON_THROW_ASSERT(deaf_session);
 			if(is_content_till_eof()){
 				terminate_content();
 			}
@@ -185,14 +185,14 @@ protected:
 
 	// Client_writer
 	long on_encoded_data_avail(Poseidon::Stream_buffer encoded) OVERRIDE {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		return send(STD_MOVE(encoded));
 	}
 
 	// Client_reader
 	void on_response_headers(Poseidon::Http::Response_headers response_headers, boost::uint64_t /*content_length*/) OVERRIDE {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		m_chunked = response_headers.status_code / 100 >= 2;
 
@@ -200,10 +200,10 @@ protected:
 		if(!session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(!m_tunnel);
+		POSEIDON_THROW_ASSERT(!m_tunnel);
 
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
-		DEBUG_THROW_ASSERT(deaf_session);
+		POSEIDON_THROW_ASSERT(deaf_session);
 		if(!session->sync_get_response_token()){
 			sync_unlink_and_shutdown(true);
 			return;
@@ -224,16 +224,16 @@ protected:
 		}
 	}
 	void on_response_entity(boost::uint64_t /*entity_offset*/, Poseidon::Stream_buffer entity) OVERRIDE {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
 			return;
 		}
-		DEBUG_THROW_ASSERT(!m_tunnel);
+		POSEIDON_THROW_ASSERT(!m_tunnel);
 
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
-		DEBUG_THROW_ASSERT(deaf_session);
+		POSEIDON_THROW_ASSERT(deaf_session);
 		if(m_chunked){
 			if(!entity.empty()){
 				session->send_chunk(STD_MOVE(entity));
@@ -243,16 +243,16 @@ protected:
 		}
 	}
 	bool on_response_end(boost::uint64_t /*content_length*/, Poseidon::Option_map headers) OVERRIDE {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
 			return false;
 		}
-		DEBUG_THROW_ASSERT(!m_tunnel);
+		POSEIDON_THROW_ASSERT(!m_tunnel);
 
 		const AUTO(deaf_session, boost::dynamic_pointer_cast<Deaf_session>(session->get_upgraded_session()));
-		DEBUG_THROW_ASSERT(deaf_session);
+		POSEIDON_THROW_ASSERT(deaf_session);
 		if(m_chunked){
 			session->send_chunked_trailer(STD_MOVE(headers));
 		} else {
@@ -280,7 +280,7 @@ protected:
 		return m_weak_session;
 	}
 	void perform() FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(session, m_weak_session.lock());
 		if(!session){
@@ -290,7 +290,7 @@ protected:
 		try {
 			really_perform(session);
 		} catch(std::exception &e){
-			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
+			MEDUSA2_LOG_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
 			session->force_shutdown();
 		}
 	}
@@ -314,7 +314,7 @@ public:
 
 protected:
 	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
 			return;
@@ -331,18 +331,18 @@ protected:
 		try {
 			if(uri.at(0) == '/'){
 				// TODO: This could be useful.
-				LOG_MEDUSA2_INFO("Relative URI not handled: remote = ", session->get_remote_info(), ", uri = ", uri);
-				DEBUG_THROW(Poseidon::Http::Exception, Poseidon::Http::status_forbidden);
+				MEDUSA2_LOG_INFO("Relative URI not handled: remote = ", session->get_remote_info(), ", uri = ", uri);
+				POSEIDON_THROW(Poseidon::Http::Exception, Poseidon::Http::status_forbidden);
 			}
 
-			LOG_MEDUSA2_INFO("New fetch request from ", session->get_remote_info());
-			LOG_MEDUSA2_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
-			LOG_MEDUSA2_INFO(">> Request headers: ", headers);
+			MEDUSA2_LOG_INFO("New fetch request from ", session->get_remote_info());
+			MEDUSA2_LOG_INFO(">> ", Poseidon::Http::get_string_from_verb(verb), " ", uri);
+			MEDUSA2_LOG_INFO(">> Request headers: ", headers);
 
 			const AUTO_REF(proxy_authorization_str, headers.get("Proxy-Authorization"));
 			const AUTO(result, Poseidon::Http::check_authentication_digest(session->m_auth_ctx, session->get_remote_info(), verb, proxy_authorization_str));
 			if(result.first != Poseidon::Http::auth_succeeded){
-				LOG_MEDUSA2_DEBUG("Authentication failed: ", proxy_authorization_str);
+				MEDUSA2_LOG_DEBUG("Authentication failed: ", proxy_authorization_str);
 				Poseidon::Http::throw_authentication_failure_digest(session->m_auth_ctx, true, session->get_remote_info(), result.first);
 			}
 
@@ -355,7 +355,7 @@ protected:
 			AUTO(pos, uri.find("://"));
 			if(pos != std::string::npos){
 				uri.at(pos) = 0;
-				LOG_MEDUSA2_TRACE("Request protocol = ", uri.c_str());
+				MEDUSA2_LOG_TRACE("Request protocol = ", uri.c_str());
 				if(::strcasecmp(uri.c_str(), "http") == 0){
 					port = 80;
 					use_ssl = false;
@@ -363,8 +363,8 @@ protected:
 					port = 443;
 					use_ssl = true;
 				} else {
-					LOG_MEDUSA2_WARNING("Unsupported protocol: ", uri.c_str(), ", remote = ", session->get_remote_info());
-					DEBUG_THROW(Poseidon::Exception, Poseidon::Rcnts::view("Unsupported protocol"));
+					MEDUSA2_LOG_WARNING("Unsupported protocol: ", uri.c_str(), ", remote = ", session->get_remote_info());
+					POSEIDON_THROW(Poseidon::Exception, Poseidon::Rcnts::view("Unsupported protocol"));
 				}
 				uri.erase(0, pos + 3);
 			}
@@ -381,7 +381,7 @@ protected:
 			// uri = "/foo/bar/page.html?param=value"
 			if(host[0] == '['){
 				pos = host.find(']');
-				DEBUG_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::Rcnts::view("Invalid IPv6 address"));
+				POSEIDON_THROW_UNLESS(pos != std::string::npos, Poseidon::Exception, Poseidon::Rcnts::view("Invalid IPv6 address"));
 				pos = host.find(':', pos + 1);
 			} else {
 				pos = host.find(':');
@@ -389,8 +389,8 @@ protected:
 			if(pos != std::string::npos){
 				char *endptr;
 				const unsigned long port_val = std::strtoul(host.c_str() + pos + 1, &endptr, 10);
-				DEBUG_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::Rcnts::view("Invalid port string"));
-				DEBUG_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::Rcnts::view("Invalid port number"));
+				POSEIDON_THROW_UNLESS(*endptr == 0, Poseidon::Exception, Poseidon::Rcnts::view("Invalid port string"));
+				POSEIDON_THROW_UNLESS((1 <= port_val) && (port_val <= 65534), Poseidon::Exception, Poseidon::Rcnts::view("Invalid port number"));
 				port = boost::numeric_cast<boost::uint16_t>(port_val);
 				host.erase(pos);
 			}
@@ -436,10 +436,10 @@ protected:
 			const AUTO(timeout, get_config<boost::uint64_t>("proxy_session_timeout", 300000));
 			session->set_timeout(timeout);
 		} catch(Poseidon::Http::Exception &e){
-			LOG_MEDUSA2_WARNING("Http::Exception thrown: remote = ", session->get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
+			MEDUSA2_LOG_WARNING("Http::Exception thrown: remote = ", session->get_remote_info(), ", status_code = ", e.get_status_code(), ", what = ", e.what());
 			session->sync_pretty_shutdown(e.get_status_code(), Protocol::error_connection_cancelled, e.what(), e.get_headers());
 		} catch(std::exception &e){
-			LOG_MEDUSA2_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
+			MEDUSA2_LOG_WARNING("std::exception thrown: remote = ", session->get_remote_info(), ", what = ", e.what());
 			session->sync_pretty_shutdown(Poseidon::Http::status_bad_gateway, Protocol::error_connection_cancelled, e.what(), VAL_INIT);
 		}
 	}
@@ -460,7 +460,7 @@ public:
 
 protected:
 	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
 			return;
@@ -494,7 +494,7 @@ public:
 
 protected:
 	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		if(session->has_been_shutdown_write()){
 			return;
@@ -525,7 +525,7 @@ public:
 
 protected:
 	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		session->shutdown_write();
 
@@ -551,7 +551,7 @@ public:
 
 protected:
 	void really_perform(const boost::shared_ptr<Proxy_session> &session) FINAL {
-		PROFILE_ME;
+		POSEIDON_PROFILE_ME;
 
 		const AUTO(channel, session->m_weak_channel.lock());
 		if(channel){
@@ -567,20 +567,20 @@ Proxy_session::Proxy_session(Poseidon::Move<Poseidon::Unique_file> socket, boost
 	, m_tunnel(false), m_chunked(false)
 	, m_weak_channel(), m_response_token(false)
 {
-	LOG_MEDUSA2_INFO("Proxy_session constructor: remote = ", get_remote_info());
+	MEDUSA2_LOG_INFO("Proxy_session constructor: remote = ", get_remote_info());
 }
 Proxy_session::~Proxy_session(){
-	LOG_MEDUSA2_INFO("Proxy_session destructor: remote = ", get_remote_info());
+	MEDUSA2_LOG_INFO("Proxy_session destructor: remote = ", get_remote_info());
 
 	const AUTO(channel, m_weak_channel.lock());
 	if(channel){
-		LOG_MEDUSA2_DEBUG("Channel was not shut down cleanly: channel_uuid = ", channel->get_channel_uuid());
+		MEDUSA2_LOG_DEBUG("Channel was not shut down cleanly: channel_uuid = ", channel->get_channel_uuid());
 		channel->shutdown(true);
 	}
 }
 
 bool Proxy_session::sync_get_response_token() NOEXCEPT {
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	if(m_response_token){
 		return false;
@@ -590,7 +590,7 @@ bool Proxy_session::sync_get_response_token() NOEXCEPT {
 }
 void Proxy_session::sync_pretty_shutdown(unsigned status_code, long err_code, const char *err_msg, const Poseidon::Option_map &headers) NOEXCEPT
 try {
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	if(sync_get_response_token()){
 		Poseidon::Http::Response_headers response_headers;
@@ -655,24 +655,24 @@ try {
 	shutdown_read();
 	shutdown_write();
 } catch(std::exception &e){
-	LOG_MEDUSA2_ERROR("std::exception remote = ", get_remote_info(), ", thrown: what = ", e.what());
+	MEDUSA2_LOG_ERROR("std::exception remote = ", get_remote_info(), ", thrown: what = ", e.what());
 	force_shutdown();
 }
 void Proxy_session::low_level_enqueue_tunnel_data(Poseidon::Stream_buffer data){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	Poseidon::enqueue(boost::make_shared<Request_entity_job>(virtual_shared_from_this<Proxy_session>(), false, STD_MOVE(data)));
 }
 
 void Proxy_session::on_read_hup(){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	Poseidon::enqueue(boost::make_shared<Read_hup_job>(virtual_shared_from_this<Proxy_session>()));
 
 	Poseidon::Http::Low_level_session::on_read_hup();
 }
 void Proxy_session::on_close(int err_code){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	Poseidon::enqueue(boost::make_shared<Close_job>(virtual_shared_from_this<Proxy_session>(), err_code));
 
@@ -680,7 +680,7 @@ void Proxy_session::on_close(int err_code){
 }
 
 void Proxy_session::on_low_level_request_headers(Poseidon::Http::Request_headers request_headers, boost::uint64_t content_length){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	m_tunnel = request_headers.verb == Poseidon::Http::verb_connect;
 	m_chunked = content_length == Poseidon::Http::Server_reader::content_length_chunked;
@@ -688,7 +688,7 @@ void Proxy_session::on_low_level_request_headers(Poseidon::Http::Request_headers
 	Poseidon::enqueue(boost::make_shared<Request_headers_job>(virtual_shared_from_this<Proxy_session>(), STD_MOVE(request_headers), m_tunnel, m_chunked));
 }
 void Proxy_session::on_low_level_request_entity(boost::uint64_t /*entity_offset*/, Poseidon::Stream_buffer entity){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	if(m_tunnel){
 		// Do nothing.
@@ -697,7 +697,7 @@ void Proxy_session::on_low_level_request_entity(boost::uint64_t /*entity_offset*
 	}
 }
 boost::shared_ptr<Poseidon::Http::Upgraded_session_base> Proxy_session::on_low_level_request_end(boost::uint64_t /*content_length*/, Poseidon::Option_map headers){
-	PROFILE_ME;
+	POSEIDON_PROFILE_ME;
 
 	if(m_tunnel){
 		return boost::make_shared<Tunnel_session>(virtual_shared_from_this<Proxy_session>());

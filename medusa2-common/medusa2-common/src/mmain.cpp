@@ -7,7 +7,7 @@
 namespace Medusa2 {
 namespace Common {
 
-DEFINE_MODULE_CONFIG("medusa2-common.conf")
+POSEIDON_DEFINE_MODULE_CONFIG("medusa2-common.conf")
 
 }
 }

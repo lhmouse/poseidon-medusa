@@ -26,14 +26,13 @@
 #include <poseidon/mutex.hpp>
 #include <poseidon/recursive_mutex.hpp>
 
-#define LOG_MEDUSA2_EXPLICIT(level_, ...)      LOG_EXPLICIT(0x4000 | (level_), __VA_ARGS__)
-
-#define LOG_MEDUSA2_FATAL(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_fatal,   __VA_ARGS__)
-#define LOG_MEDUSA2_ERROR(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_error,   __VA_ARGS__)
-#define LOG_MEDUSA2_WARNING(...)      LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_warning, __VA_ARGS__)
-#define LOG_MEDUSA2_INFO(...)         LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_info,    __VA_ARGS__)
-#define LOG_MEDUSA2_DEBUG(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_debug,   __VA_ARGS__)
-#define LOG_MEDUSA2_TRACE(...)        LOG_MEDUSA2_EXPLICIT(::Poseidon::Logger::level_trace,   __VA_ARGS__)
+#define MEDUSA2_LOG(lv_, ...)      POSEIDON_CHECK_AND_LOG((lv_) | 0x4000, __VA_ARGS__)
+#define MEDUSA2_LOG_FATAL(...)     MEDUSA2_LOG(::Poseidon::Logger::level_fatal,   __VA_ARGS__)
+#define MEDUSA2_LOG_ERROR(...)     MEDUSA2_LOG(::Poseidon::Logger::level_error,   __VA_ARGS__)
+#define MEDUSA2_LOG_WARNING(...)   MEDUSA2_LOG(::Poseidon::Logger::level_warning, __VA_ARGS__)
+#define MEDUSA2_LOG_INFO(...)      MEDUSA2_LOG(::Poseidon::Logger::level_info,    __VA_ARGS__)
+#define MEDUSA2_LOG_DEBUG(...)     MEDUSA2_LOG(::Poseidon::Logger::level_debug,   __VA_ARGS__)
+#define MEDUSA2_LOG_TRACE(...)     MEDUSA2_LOG(::Poseidon::Logger::level_trace,   __VA_ARGS__)
 
 namespace Medusa2 {
 	//
