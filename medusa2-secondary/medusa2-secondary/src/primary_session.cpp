@@ -418,7 +418,7 @@ void Primary_session::on_sync_data_message(boost::uint16_t message_id, Poseidon:
 		channel->shutdown(msg.no_linger);
 	}
 	ON_MESSAGE(Protocol::PS_Ping, msg){
-		MEDUSA2_LOG_INFO("Received PING from ", get_remote_info(), ": ", msg);
+		MEDUSA2_LOG_DEBUG("Received PING from ", get_remote_info(), ": ", msg);
 
 		Protocol::SP_Pong resp;
 		resp.opaque = STD_MOVE(msg.opaque);
