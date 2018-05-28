@@ -109,7 +109,7 @@ namespace {
 				channel->on_sync_closed(msg.err_code, STD_MOVE(msg.err_msg));
 			}
 			ON_MESSAGE(Protocol::SP_Pong, msg){
-				MEDUSA2_LOG_INFO("Received PONG from ", get_remote_info(), ": ", msg);
+				MEDUSA2_LOG_DEBUG("Received PONG from ", get_remote_info(), ": ", msg);
 			}
 //=============================================================================
 #undef ON_MESSAGE
