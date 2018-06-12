@@ -6,6 +6,7 @@ AC_PROG_CXX
 AC_LANG([C++])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_SILENT_RULES([yes])
 LT_INIT([disable-static dlopen])
 
 AC_CONFIG_FILES([
