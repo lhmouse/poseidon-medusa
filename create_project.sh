@@ -11,7 +11,7 @@ if [[ -z "${1}" ]]; then
 	exit 1
 fi
 
-_canon_name="$(echo "${1}" | sed -r "s,/+$,,;s,\\W,-,g")"
+_canon_name="$(echo "${1}" | sed -E "s,/+$,,;s,\\W,-,g")"
 _full_name="${_prefix}-${_canon_name}"
 
 if [[ -d "${_full_name}" ]]; then
@@ -23,9 +23,9 @@ fi
 
 echo "Creating empty project in directory '${_full_name}'..."
 cp -RpT "${_prefix}-@@temp-late@@" "${_full_name}"
-sed -i -r -e "s,@@temp(-|_)late@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;s,\\w,\\l&,g"),g"	\
-          -e "s,@@Temp(-|_)late@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;s,\\<\\w,\\u&,g"),g"	\
-          -e "s,@@TEMP(-|_)LATE@@,$(echo "${_canon_name}" | sed -r "s,-,\\\\1,g;s,\\w,\\u&,g"),g"	\
+sed -i -r -e "s,@@temp(-|_)late@@,$(echo "${_canon_name}" | sed -E "s,-,\\\\1,g;s,\\w,\\l&,g"),g"	\
+          -e "s,@@Temp(-|_)late@@,$(echo "${_canon_name}" | sed -E "s,-,\\\\1,g;s,\\<\\w,\\u&,g"),g"	\
+          -e "s,@@TEMP(-|_)LATE@@,$(echo "${_canon_name}" | sed -E "s,-,\\\\1,g;s,\\w,\\u&,g"),g"	\
 	$(find "${_full_name}" -type f)
 mv -fT "${_full_name}/${_prefix}-@@temp-late@@" "${_full_name}/${_full_name}"
 ln -sfT "./${_full_name}/src/" "${_full_name}/src"

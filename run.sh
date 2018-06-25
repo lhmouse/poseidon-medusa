@@ -4,7 +4,7 @@ set -e
 
 _pwd="$(pwd)"
 _cmd="poseidon"
-_runpath="$(find "${_pwd}" -path '*/lib/.libs' -type d -print0 | sed -r 's/\x00/:/g')"
+_runpath="$(find "${_pwd}" -path '*/lib/.libs' -type d -print0 | sed -E 's/\x00/:/g')"
 _confpath="${_pwd}/etc/medusa2"
 
 _type="$1"
