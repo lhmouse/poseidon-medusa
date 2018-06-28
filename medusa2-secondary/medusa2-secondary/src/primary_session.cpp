@@ -134,7 +134,7 @@ public:
 	}
 
 public:
-	const Poseidon::Uuid &get_channel_uuid() const {
+	const Poseidon::Uuid & get_channel_uuid() const {
 		return m_channel_uuid;
 	}
 

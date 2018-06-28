@@ -15,7 +15,7 @@ public:
 	static boost::shared_ptr<Secondary_channel> get_attached_channel(const Poseidon::Uuid &channel_uuid);
 	static void attach_channel(const boost::shared_ptr<Secondary_channel> &channel);
 
-	static const Poseidon::Ip_port &get_remote_info();
+	static const Poseidon::Ip_port & get_remote_info();
 	static bool send(const Poseidon::Cbpp::Message_base &msg);
 	static bool shutdown(long err_code, const char *what) NOEXCEPT;
 

@@ -219,7 +219,7 @@ void Secondary_connector::attach_channel(const boost::shared_ptr<Secondary_chann
 	client->send(msg);
 }
 
-const Poseidon::Ip_port &Secondary_connector::get_remote_info(){
+const Poseidon::Ip_port & Secondary_connector::get_remote_info(){
 	POSEIDON_PROFILE_ME;
 
 	const AUTO(client, g_weak_client.lock());

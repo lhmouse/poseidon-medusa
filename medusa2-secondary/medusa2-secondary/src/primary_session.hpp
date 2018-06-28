@@ -38,7 +38,7 @@ protected:
 	void on_sync_control_message(Poseidon::Cbpp::Status_code status_code, Poseidon::Stream_buffer param) OVERRIDE;
 
 public:
-	const Poseidon::Uuid &get_session_uuid() const NOEXCEPT {
+	const Poseidon::Uuid & get_session_uuid() const NOEXCEPT {
 		return m_session_uuid;
 	}
 

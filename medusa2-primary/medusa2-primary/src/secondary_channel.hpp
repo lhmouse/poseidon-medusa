@@ -38,7 +38,7 @@ public:
 	const Poseidon::Uuid get_channel_uuid() const {
 		return m_channel_uuid;
 	}
-	const std::string &get_host() const {
+	const std::string & get_host() const {
 		return m_host;
 	}
 	unsigned get_port() const {
