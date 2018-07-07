@@ -4,7 +4,7 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion -Wno-error=un
 	-pipe -fPIC -DPIC -pthread
 AM_CXXFLAGS = -Wnon-virtual-dtor
 
-%.hpp.gch: %.hpp
+%.hpp.gch: %.hpp ../config.h
 	${AM_V_CXX}${CXX} -x c++-header ${DEFS} -I.. ${AM_CPPFLAGS} ${CPPFLAGS} ${AM_CXXFLAGS} ${CXXFLAGS} -Wno-error $< -o $@
 
 BUILT_SOURCES =	\
