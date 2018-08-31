@@ -6,7 +6,7 @@ AM_CPPFLAGS = -Wall -Wextra -Werror -Wconversion -Wsign-conversion	\
 AM_CXXFLAGS = -Wnon-virtual-dtor
 
 %.hpp.gch: %.hpp ../config.h
-	${AM_V_CXX}${CXX} -x c++-header ${DEFS} -I.. ${AM_CPPFLAGS} ${CPPFLAGS} ${AM_CXXFLAGS} ${CXXFLAGS} -Wno-error $< -o $@
+	${AM_V_CXX}${CXXCOMPILE} -x c++-header -Wno-error $< -o $@
 
 BUILT_SOURCES =	\
 	medusa2-common/src/precompiled.hpp.gch
