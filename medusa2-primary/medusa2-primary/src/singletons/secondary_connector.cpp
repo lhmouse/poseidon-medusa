@@ -110,6 +110,14 @@ namespace {
 			}
 			ON_MESSAGE(Protocol::SP_Pong, msg){
 				MEDUSA2_LOG_DEBUG("Received PONG from ", get_remote_info(), ": ", msg);
+				boost::uint64_t timestamp_be;
+				if(msg.opaque.peek(&timestamp_be, 8) < 8){
+					MEDUSA2_LOG_WARNING("Invalid SP_Pong: size = ", msg.opaque.size());
+				} else {
+					const AUTO(now, Poseidon::get_fast_mono_clock());
+					const AUTO(delay, Poseidon::saturated_sub(now, Poseidon::load_be(timestamp_be)));
+					MEDUSA2_LOG_DEBUG("-- Delay = ", delay, " ms");
+				}
 			}
 //=============================================================================
 #undef ON_MESSAGE
@@ -141,11 +149,16 @@ namespace {
 	Protocol::PS_Ping create_dummy_ping_message(){
 		POSEIDON_PROFILE_ME;
 
+		boost::uint64_t timestamp_be;
+		const AUTO(now, Poseidon::get_fast_mono_clock());
+		Poseidon::store_be(timestamp_be, now);
+
 		unsigned char data[256];
-		std::size_t size = Poseidon::random_uint32() % 256;
+		const AUTO(size, Poseidon::random_uint32() % 256);
 		std::generate(data, data + size, Poseidon::Random_bit_generator_uint32());
 
 		Protocol::PS_Ping msg;
+		msg.opaque.put(&timestamp_be, 8);
 		msg.opaque.put(data, size);
 		return msg;
 	}
