@@ -149,17 +149,15 @@ namespace {
 	Protocol::PS_Ping create_dummy_ping_message(){
 		POSEIDON_PROFILE_ME;
 
+		Protocol::PS_Ping msg;
 		boost::uint64_t timestamp_be;
 		const AUTO(now, Poseidon::get_fast_mono_clock());
 		Poseidon::store_be(timestamp_be, now);
-
-		unsigned char data[256];
-		const AUTO(size, Poseidon::random_uint32() % 256);
-		std::generate(data, data + size, Poseidon::Random_bit_generator_uint32());
-
-		Protocol::PS_Ping msg;
 		msg.opaque.put(&timestamp_be, 8);
-		msg.opaque.put(data, size);
+		const AUTO(rand_size, Poseidon::random_uint32() % 256);
+		for(boost::uint32_t i = 0; i < rand_size; ++i){
+			msg.opaque.put(static_cast<unsigned char>(Poseidon::random_uint32() >> 24));
+		}
 		return msg;
 	}
 
