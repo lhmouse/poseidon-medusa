@@ -307,12 +307,12 @@ try {
 			closed_msg.err_code = 0;
 			closed_msg.err_msg  = VAL_INIT;
 		} catch(Poseidon::Cbpp::Exception &e){
-			MEDUSA2_LOG_INFO("Cbpp::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
+			MEDUSA2_LOG_DEBUG("Cbpp::Exception thrown: status_code = ", e.get_status_code(), ", what = ", e.what());
 			erase_it = true;
 			closed_msg.err_code = e.get_status_code();
 			closed_msg.err_msg  = e.what();
 		} catch(std::exception &e){
-			MEDUSA2_LOG_INFO("std::exception thrown: what = ", e.what());
+			MEDUSA2_LOG_WARNING("std::exception thrown: what = ", e.what());
 			erase_it = true;
 			closed_msg.err_code = Protocol::error_internal_error;
 			closed_msg.err_msg  = e.what();
