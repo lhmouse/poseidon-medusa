@@ -113,10 +113,13 @@ namespace {
 				boost::uint64_t timestamp_be;
 				if(msg.opaque.peek(&timestamp_be, 8) < 8){
 					MEDUSA2_LOG_WARNING("Invalid SP_Pong: size = ", msg.opaque.size());
-				} else {
+					break;
+				}
+				const AUTO(log_pong, get_config<bool>("log_secondary_pong", false));
+				if(log_pong) {
 					const AUTO(now, Poseidon::get_fast_mono_clock());
 					const AUTO(delay, Poseidon::saturated_sub(now, Poseidon::load_be(timestamp_be)));
-					MEDUSA2_LOG_DEBUG("-- Delay = ", delay, " ms");
+					MEDUSA2_LOG_WARNING("Received PONG from secondary server: delay = ", delay, " ms");
 				}
 			}
 //=============================================================================
