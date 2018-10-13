@@ -7,7 +7,7 @@ AM_CXXFLAGS = -Wnon-virtual-dtor
 
 %.hpp.gch: %.hpp ../config.h
 	${AM_V_CXX}${LTCXXCOMPILE} -x c++-header -Wno-error $< -o $@.o
-	${AM_V_GEN}${LIBTOOL} --tag=CXX --mode=link sh -c 'mv -f "$$1" "$$3"' _ $@.lo -o $@
+	${AM_V_GEN}${LIBTOOL} ${AM_V_lt} --tag=CXX --mode=link sh -c 'mv -f "$$1" "$$3"' _ $@.lo -o $@
 
 BUILT_SOURCES =	\
 	medusa2-common/src/precompiled.hpp.gch
