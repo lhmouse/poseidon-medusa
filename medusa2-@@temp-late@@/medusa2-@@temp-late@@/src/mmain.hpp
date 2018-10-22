@@ -9,7 +9,7 @@
 namespace Medusa2 {
 namespace @@Temp_late@@ {
 
-DECLARE_MODULE_CONFIG(get_config)
+POSEIDON_DECLARE_MODULE_CONFIG(get_config)
 
 }
 }

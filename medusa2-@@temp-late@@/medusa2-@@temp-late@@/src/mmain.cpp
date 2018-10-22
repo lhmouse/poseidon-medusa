@@ -7,7 +7,7 @@
 namespace Medusa2 {
 namespace @@Temp_late@@ {
 
-DEFINE_MODULE_CONFIG("medusa2-@@temp-late@@.conf")
+POSEIDON_DEFINE_MODULE_CONFIG("medusa2-@@temp-late@@.conf")
 
 }
 }
