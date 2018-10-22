@@ -2,7 +2,8 @@
 
 _prefix="medusa2"
 
-if test -z "${1}" then
+if test -z "${1}"
+then
   echo "Usage:" >&2
   echo "  ${0} <project_name>" >&2
   echo "<project_name> shall not contain the prefix '${_prefix}'" >&2
@@ -12,7 +13,8 @@ fi
 _canon_name="$(echo "${1}" | sed -E "s,/+$,,;s,\\W,-,g")"
 _full_name="${_prefix}-${_canon_name}"
 
-if test -d "${_full_name}" then
+if test -d "${_full_name}"
+then
   echo "Project directory already exists:" >&2
   echo "  ${_full_name}" >&2
   echo "You have to remove it before proceeding." >&2
